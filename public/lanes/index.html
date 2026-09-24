@@ -239,7 +239,7 @@
         Arcade.initAudio();
         if (state !== 'playing') return;
         var r = canvas.getBoundingClientRect();
-        var left = (e.clientX - r.left) < r.width / 2;
+        var left = (e.clientX - r.left) < laneCenter(lane);
         move(left ? -1 : 1);
       });
 
@@ -250,7 +250,7 @@
         var t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
         if (!t) return;
         var r = canvas.getBoundingClientRect();
-        var left = (t.clientX - r.left) < r.width / 2;
+        var left = (t.clientX - r.left) < laneCenter(lane);
         move(left ? -1 : 1);
       }, { passive: false });
 
