@@ -384,6 +384,11 @@
           body: JSON.stringify({ game: game, stat: true, score: pendingScore })
         }).catch(function () {});
       } catch (e) {}
+      try {
+        var mp = JSON.parse(localStorage.getItem('arcade-myplays') || '{}');
+        mp[game] = (Number(mp[game]) || 0) + 1;
+        localStorage.setItem('arcade-myplays', JSON.stringify(mp));
+      } catch (e) {}
     }
     var best = Math.max(bestByGame[game] || 0, pendingScore);
     bestByGame[game] = best;
@@ -592,6 +597,13 @@
     var myBests = null;
     var done = 0;
     function fmt(n) { return n.toLocaleString('en-US') + (n === 1 ? ' play' : ' plays'); }
+    function myPlays(gameKey) {
+      try {
+        var mp = JSON.parse(localStorage.getItem('arcade-myplays') || '{}');
+        return Number(mp[gameKey]) || 0;
+      } catch (e) {}
+      return 0;
+    }
     function renderDistVals(dist, hist, best, edges) {
       var vals = dist.querySelector('.dist-vals');
       if (!vals) {
@@ -651,8 +663,9 @@
       var meta = el.querySelector('.spread-meta');
       if (!histOk) {
         if (typeof n === 'number') {
+          var you = myPlays(gameKey);
           dist.hidden = true;
-          meta.innerHTML = 'No scores yet &middot; <b>' + fmt(n) + '</b>';
+          meta.innerHTML = 'No scores yet &middot; <b>' + fmt(n) + '</b>' + (you > 0 ? ' &middot; you <b>' + you + '</b>' : '');
           el.hidden = false;
         }
         return;
@@ -669,6 +682,8 @@
       var bits = [];
       if (best && best > 0) bits.push('best <b>' + best.toLocaleString('en-US') + '</b>');
       if (typeof n === 'number') bits.push('<b>' + n.toLocaleString('en-US') + '</b> plays');
+      var you = myPlays(gameKey);
+      if (you > 0) bits.push('you <b>' + you + '</b>');
       meta.innerHTML = bits.join(' &middot; ');
       el.hidden = false;
     }
