@@ -293,7 +293,7 @@
             var numberColor = streak >= 15 ? colors.coral : (streak >= 10 ? colors.lime : (streak >= 5 ? colors.cyan : colors.ink));
             var numberSize = 30 + Math.min(streak, 20) * 1.2;
             ctx.shadowColor = numberColor;
-            ctx.shadowBlur = 12 + Math.min(streak, 20);
+            ctx.shadowBlur = 5;
             ctx.fillStyle = numberColor;
             ctx.font = '700 ' + numberSize + 'px DM Mono, monospace';
             ctx.fillText(String(streak), cx, cy - 6);

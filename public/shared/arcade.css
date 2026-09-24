@@ -435,6 +435,7 @@ h1 {
 .cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
   gap: 16px;
   margin-top: 40px;
   text-align: left;
@@ -458,35 +459,39 @@ h1 {
 .game-card:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 .game-card h2 { margin: 0; font-size: 30px; letter-spacing: -.045em; font-weight: 750; }
 .game-card .tag { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.spread { margin: 14px 0 0; }
-.spread-bar {
-  position: relative;
-  height: 8px;
-  border-radius: 99px;
-  background: rgba(157,242,255,.12);
-}
-.spread-band {
+.spread { margin: 10px 0 0; }
+.dist { position: relative; height: 20px; }
+.dist-bars {
   position: absolute;
-  top: 0; bottom: 0;
-  border-radius: 99px;
-  background: linear-gradient(90deg, rgba(1,205,254,.35), rgba(1,205,254,.95));
-  box-shadow: 0 0 10px rgba(1,205,254,.45);
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
 }
-.spread-mid {
+.dist-bar {
+  flex: 1 1 0;
+  min-width: 2px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, rgba(1,205,254,.95), rgba(1,205,254,.35));
+}
+.dist-best {
   position: absolute;
-  top: -3px; bottom: -3px;
-  width: 3px;
-  margin-left: -1.5px;
+  top: -2px; bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
   border-radius: 2px;
-  background: var(--lime);
-  box-shadow: 0 0 8px rgba(255,179,0,.7);
+  background: #ffb300;
+  box-shadow: 0 0 8px rgba(255,179,0,.8);
 }
 .spread-meta {
-  margin: 9px 0 0;
+  margin: 6px 0 0;
   font: 500 11px/1.6 "DM Mono", monospace;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .spread-meta b { color: var(--ink); font-weight: 700; }
 .run-pct {
@@ -619,7 +624,7 @@ body.hub .toast { position: fixed; z-index: 6; }
 
 /* ================= diagonal-split hub cards ================= */
 .game-card.game-split { display: flex; align-items: stretch; padding: 0; overflow: hidden; }
-.game-info { flex: 1.15; min-width: 0; padding: 18px 20px 16px; display: flex; flex-direction: column; justify-content: center; }
+.game-info { flex: 1.15; min-width: 0; padding: 14px 20px 12px; display: flex; flex-direction: column; justify-content: center; }
 .game-side {
   flex: 1; min-width: 0;
   display: flex; flex-direction: column; align-items: stretch; justify-content: center;

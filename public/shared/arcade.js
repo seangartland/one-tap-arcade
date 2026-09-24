@@ -450,6 +450,17 @@
     function loadGlobal() {
       var listEl = document.getElementById('globalList');
       if (!listEl) return;
+      function adoptBestRows(rows) {
+        var u = getUser();
+        var mine = null;
+        if (u) {
+          for (var i = 0; i < rows.length; i++) {
+            if (rows[i] && rows[i].username === u.username && rows[i].bests) { mine = rows[i].bests; break; }
+          }
+        }
+        myBests = mine;
+        for (var g = 0; g < games.length; g++) paint(games[g]);
+      }
       function render(rows) {
         if (!rows || !rows.length) {
           listEl.innerHTML = '<li class="empty"><span>No global plays yet. Be the first.</span></li>';
@@ -469,13 +480,17 @@
       }
       try {
         var cached = JSON.parse(localStorage.getItem('arcade-global') || 'null');
-        if (cached && Date.now() - cached.t < 300000 && Array.isArray(cached.rows)) render(cached.rows);
+        if (cached && Date.now() - cached.t < 300000 && Array.isArray(cached.rows)) {
+          render(cached.rows);
+          adoptBestRows(cached.rows);
+        }
       } catch (e) {}
       fetch('/api/scores?board=global&_=' + Date.now())
         .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
         .then(function (d) {
           var rows = (d && d.board) || [];
           render(rows);
+          adoptBestRows(rows);
           try { localStorage.setItem('arcade-global', JSON.stringify({ t: Date.now(), rows: rows })); } catch (e) {}
         })
         .catch(function () { render([]); });
@@ -484,35 +499,14 @@
     loadGlobal();
 
     var plays = {};
+    var stats = {};
+    var myBests = null;
     var done = 0;
     function fmt(n) { return n.toLocaleString('en-US') + (n === 1 ? ' play' : ' plays'); }
-    function pct(sorted, p) {
-      var i = (sorted.length - 1) * p;
-      var lo = Math.floor(i), hi = Math.ceil(i);
-      return Math.round(sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo));
-    }
     function histTotal(hist) {
       var t = 0;
       for (var i = 0; i < hist.length; i++) t += hist[i];
       return t;
-    }
-    /* Interpolated percentile from histogram buckets. Bucket 0 = {0};
-       bucket i covers (HIST_EDGES[i-1], HIST_EDGES[i]]. */
-    function histPct(hist, p) {
-      var total = histTotal(hist);
-      if (!total) return null;
-      var rank = p * (total - 1);
-      var cum = 0;
-      for (var i = 0; i < hist.length; i++) {
-        var c = hist[i];
-        if (rank < cum + c && c > 0) {
-          var lo = i === 0 ? 0 : HIST_EDGES[i - 1] + 1;
-          var hi = i === hist.length - 1 ? 2000 : HIST_EDGES[i];
-          return Math.round(lo + ((rank - cum) / c) * (hi - lo));
-        }
-        cum += c;
-      }
-      return HIST_EDGES[0];
     }
     function histMax(hist) {
       for (var i = hist.length - 1; i >= 0; i--) {
@@ -520,49 +514,62 @@
       }
       return 0;
     }
-    function summarize(scores, hist) {
-      var vals = (scores || []).map(function (s) { return s.score; })
-        .filter(function (v) { return typeof v === 'number' && isFinite(v); })
-        .sort(function (a, b) { return a - b; });
-      var top = vals.length ? vals[vals.length - 1] : null;
-      if (hist && histTotal(hist) > 0) {
-        return { q1: histPct(hist, .25), med: histPct(hist, .5), q3: histPct(hist, .75),
-                 top: top != null ? top : histMax(hist) };
-      }
-      if (!vals.length) return null;
-      return { q1: pct(vals, .25), med: pct(vals, .5), q3: pct(vals, .75), top: top };
+    /* 0..1 position of a score on the histogram strip: the bar row is
+       divided evenly across buckets, so a score starts at its bucket and
+       interpolates between that bucket's edges. The last (Infinity) bucket
+       is capped at 1000 for scaling, and xMax clamps the score so the
+       user's best marker never runs off the right edge. */
+    function scorePos(score, xMax) {
+      if (!isFinite(score)) score = 1000;
+      if (score < 0) score = 0;
+      if (xMax > 0 && score > xMax) score = xMax;
+      var i = 0;
+      while (i < HIST_EDGES.length && score > HIST_EDGES[i]) i++;
+      if (i >= HIST_EDGES.length) i = HIST_EDGES.length - 1;
+      var lo = i === 0 ? 0 : HIST_EDGES[i - 1];
+      var hi = i === HIST_EDGES.length - 1 ? 1000 : HIST_EDGES[i];
+      var f = hi > lo ? (score - lo) / (hi - lo) : 0;
+      if (f > 1) f = 1;
+      return (i + f) / HIST_EDGES.length;
     }
-    function renderSpread(gameKey, sum, n) {
+    function paint(gameKey) {
       var el = document.getElementById('spread-' + gameKey);
-      if (!el) { finishOne(); return; }
-      var bar = el.querySelector('.spread-bar');
+      if (!el) return;
+      var hist = stats[gameKey] ? stats[gameKey].hist : null;
+      var histOk = hist && histTotal(hist) > 0;
+      var n = plays[gameKey];
+      var best = myBests ? myBests[gameKey] : null;
+      var dist = el.querySelector('.dist');
+      var bars = dist.querySelector('.dist-bars');
+      var mark = dist.querySelector('.dist-best');
       var meta = el.querySelector('.spread-meta');
-      if (typeof n === 'number') plays[gameKey] = n;
-      if (!sum) {
+      if (!histOk) {
         if (typeof n === 'number') {
-          bar.style.display = 'none';
+          dist.hidden = true;
           meta.innerHTML = 'No scores yet &middot; <b>' + fmt(n) + '</b>';
           el.hidden = false;
         }
-        finishOne(); return;
+        return;
       }
-      if (sum.top > 0) {
-        var band = el.querySelector('.spread-band');
-        var mid = el.querySelector('.spread-mid');
-        band.style.left = (sum.q1 / sum.top * 100) + '%';
-        band.style.width = (Math.max(sum.q3 - sum.q1, sum.top * 0.02) / sum.top * 100) + '%';
-        mid.style.left = (sum.med / sum.top * 100) + '%';
-        bar.style.display = '';
-        bar.setAttribute('aria-label', 'Typical scores ' + sum.q1 + ' to ' + sum.q3 + ', top ' + sum.top);
+      var peak = 0;
+      for (var i = 0; i < hist.length; i++) if (hist[i] > peak) peak = hist[i];
+      var html = '';
+      for (var j = 0; j < hist.length; j++) {
+        html += '<span class="dist-bar" style="height:' + Math.max(10, Math.round(hist[j] / peak * 100)) + '%"></span>';
+      }
+      bars.innerHTML = html;
+      dist.hidden = false;
+      if (best && best > 0) {
+        mark.style.left = (scorePos(best, Math.max(histMax(hist), best)) * 100) + '%';
+        mark.hidden = false;
       } else {
-        bar.style.display = 'none';
+        mark.hidden = true;
       }
-      var bits = ['typical <b>' + sum.q1 + '&ndash;' + sum.q3 + '</b>',
-                  'top <b>' + sum.top.toLocaleString('en-US') + '</b>'];
-      if (typeof n === 'number') bits.push('<b>' + fmt(n) + '</b>');
+      var bits = [];
+      if (best && best > 0) bits.push('best <b>' + best.toLocaleString('en-US') + '</b>');
+      if (typeof n === 'number') bits.push('<b>' + n.toLocaleString('en-US') + '</b> plays');
       meta.innerHTML = bits.join(' &middot; ');
       el.hidden = false;
-      finishOne();
     }
     function sortCards() {
       var wrap = document.querySelector('.cards');
@@ -581,17 +588,26 @@
       var cacheKey = 'arcade-spread-' + gameKey;
       try {
         var cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-        if (cached && Date.now() - cached.t < 300000) { renderSpread(gameKey, cached.sum, cached.plays); return; }
+        if (cached && Date.now() - cached.t < 300000 && Array.isArray(cached.hist)) {
+          stats[gameKey] = { hist: cached.hist };
+          if (typeof cached.plays === 'number') plays[gameKey] = cached.plays;
+          paint(gameKey);
+          finishOne();
+          return;
+        }
       } catch (e) {}
       fetch('/api/scores?game=' + gameKey)
         .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
         .then(function (d) {
-          var sum = summarize(d && d.scores, d && d.hist);
+          var hist = (d && Array.isArray(d.hist)) ? d.hist : null;
           var n = d && typeof d.plays === 'number' ? d.plays : null;
-          renderSpread(gameKey, sum, n);
-          try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), sum: sum, plays: n })); } catch (e) {}
+          if (hist) stats[gameKey] = { hist: hist };
+          if (typeof n === 'number') plays[gameKey] = n;
+          paint(gameKey);
+          try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), hist: hist, plays: n })); } catch (e) {}
         })
-        .catch(function () { renderSpread(gameKey, null, null); });
+        .catch(function () {})
+        .then(function () { finishOne(); });
     }
     for (var i = 0; i < games.length; i++) loadGame(games[i]);
   }
