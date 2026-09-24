@@ -23,25 +23,36 @@ html, body { width: 100%; min-height: 100%; margin: 0; }
 body {
   min-height: 100svh;
   background-color: var(--paper);
+  color: var(--ink);
+  font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Fixed grid layer: gradient backgrounds on body repaint on every scroll
+   frame on iOS Safari. A fixed layer composites without repainting. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   background-image:
     linear-gradient(rgba(1,205,254,.09) 1px, transparent 1px),
     linear-gradient(90deg, rgba(1,205,254,.09) 1px, transparent 1px);
   background-size: 34px 34px;
-  color: var(--ink);
-  font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  -webkit-tap-highlight-color: transparent;
+}
+body.hub::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 0%, rgba(1,205,254,.16), transparent 55%);
 }
 body.game { overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
 body.hub {
   display: grid;
   place-items: center;
   padding: 40px 24px;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(1,205,254,.16), transparent 55%),
-    linear-gradient(rgba(1,205,254,.09) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(1,205,254,.09) 1px, transparent 1px),
-    var(--paper);
-  background-size: auto, 34px 34px, 34px 34px, auto;
 }
 button { font: inherit; }
 
