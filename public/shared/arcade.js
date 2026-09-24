@@ -612,7 +612,7 @@
           else if (x > 94) x = 94;
         }
         for (var k = 0; k < placed.length; k++) {
-          if (Math.abs(x - placed[k]) < 6) return;
+          if (Math.abs(x - placed[k]) < 8) return;
         }
         var span = document.createElement('span');
         span.className = 'dist-val';
@@ -622,10 +622,12 @@
         vals.appendChild(span);
         placed.push(x);
       }
-      add(v25, false);
-      add(v50, false);
-      add(v75, false);
-      add(vMax, true);
+      if (vMax > 0) {
+        add(vMax, true);
+        if (v50 > 0) add(v50, false);
+        if (v75 > 0) add(v75, false);
+        if (v25 > 0) add(v25, false);
+      }
       dist.setAttribute('aria-label', 'Score distribution: 25th ' + v25.toLocaleString('en-US') + ', median ' + v50.toLocaleString('en-US') + ', 75th ' + v75.toLocaleString('en-US') + ', max ' + vMax.toLocaleString('en-US'));
     }
     function paint(gameKey) {

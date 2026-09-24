@@ -494,9 +494,11 @@ h1 {
 .dist-val {
   position: absolute;
   bottom: 0;
-  font: 500 9px "DM Mono", monospace;
-  color: var(--muted);
-  text-shadow: 0 1px 3px #05070f, 0 0 6px rgba(5,7,15,.9);
+  font: 500 10px "DM Mono", monospace;
+  color: #d7dee9;
+  background: rgba(5,7,15,.78);
+  padding: 1px 4px;
+  border-radius: 3px;
   white-space: nowrap;
 }
 .spread-meta {
