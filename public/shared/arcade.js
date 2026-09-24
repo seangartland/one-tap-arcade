@@ -602,6 +602,7 @@
           listEl.innerHTML = '<li class="empty"><span>No global plays yet. Be the first.</span></li>';
           return;
         }
+        var u = getUser();
         var html = '';
         for (var i = 0; i < rows.length; i++) {
           var r = rows[i];
@@ -610,7 +611,8 @@
             var key = games[g];
             bits.push(key + ' ' + (r.bests[key] != null ? r.bests[key] : 0));
           }
-          html += '<li title="' + esc(bits.join(', ')) + '"><span class="grank">' + (i + 1) + '</span><span class="gname">' + esc(r.username) + '</span><span class="gtotal">' + r.total + '</span></li>';
+          var me = u && r.username === u.username ? ' class="me"' : '';
+          html += '<li' + me + ' title="' + esc(bits.join(', ')) + '"><span class="grank">' + (i + 1) + '</span><span class="gname">' + esc(r.username) + '</span><span class="gtotal">' + r.total + '</span></li>';
         }
         listEl.innerHTML = html;
       }
