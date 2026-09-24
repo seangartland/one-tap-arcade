@@ -463,6 +463,14 @@ h1 {
   color: var(--muted);
 }
 .spread-meta b { color: var(--ink); font-weight: 700; }
+.run-pct {
+  margin: 10px 0 0;
+  font: 500 12px/1.6 "DM Mono", monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.run-pct b { color: var(--lime); font-weight: 700; }
 .game-card .go {
   display: block;
   margin-top: 20px;

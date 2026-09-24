@@ -121,7 +121,9 @@
   }
 
   /* ---------- leaderboard ---------- */
+  var HIST_EDGES = [0, 1, 2, 4, 9, 19, 29, 49, 74, 99, 149, 249, 499, 999, Infinity];
   var boardCache = null;
+  var boardStats = null;
   var pendingScore = 0;
   var bestByGame = {};
   function esc(s) {
@@ -132,7 +134,10 @@
   function fetchBoard() {
     boardCache = fetch('/api/scores?game=' + game + '&_=' + Date.now())
       .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
-      .then(function (d) { return (d && d.scores) || []; })
+      .then(function (d) {
+        boardStats = (d && d.hist) ? { hist: d.hist, runs: d.runs || 0 } : null;
+        return (d && d.scores) || [];
+      })
       .catch(function () { return null; });
     return boardCache;
   }
@@ -249,8 +254,38 @@
       try { initialsEl.value = localStorage.getItem('arcade-initials') || ''; } catch (e) {}
       if (overlay) overlay.classList.add('entry-on');
     }
-    fetchBoard();
+    showRunPercentile(pendingScore);
     if (startBtn) setTimeout(function () { startBtn.focus({ preventScroll: true }); }, 320);
+  }
+  var pctToken = 0;
+  /* % of all recorded runs this score beat (ties don't count). */
+  function pctBeaten(hist, runs, score) {
+    if (!runs) return null;
+    var beaten = 0;
+    for (var i = 0; i < hist.length; i++) {
+      var lo = i === 0 ? 0 : HIST_EDGES[i - 1] + 1;
+      var hi = i === hist.length - 1 ? 2000 : HIST_EDGES[i];
+      if (hi < score) beaten += hist[i];
+      else if (lo < score && hi > lo) beaten += hist[i] * ((score - lo) / (hi - lo));
+    }
+    return (beaten / runs) * 100;
+  }
+  function showRunPercentile(score) {
+    var el = document.getElementById('runPct');
+    if (!el) return;
+    var my = ++pctToken;
+    el.hidden = true;
+    fetchBoard().then(function () {
+      if (my !== pctToken || !boardStats || !boardStats.runs) return;
+      var p = pctBeaten(boardStats.hist, boardStats.runs, score);
+      if (p == null) return;
+      var label;
+      if (p >= 99.5) label = 'Top <b>1%</b> of runs';
+      else if (p >= 90) label = 'Top <b>' + Math.round(100 - p) + '%</b> of runs';
+      else label = 'Better than <b>' + Math.round(p) + '%</b> of runs';
+      el.innerHTML = label;
+      el.hidden = false;
+    });
   }
 
   /* ---------- global wiring ---------- */
@@ -302,7 +337,6 @@
       var lo = Math.floor(i), hi = Math.ceil(i);
       return Math.round(sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo));
     }
-    var HIST_EDGES = [0, 1, 2, 4, 9, 19, 29, 49, 74, 99, 149, 249, 499, 999, Infinity];
     function histTotal(hist) {
       var t = 0;
       for (var i = 0; i < hist.length; i++) t += hist[i];
