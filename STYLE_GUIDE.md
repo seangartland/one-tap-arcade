@@ -118,6 +118,23 @@ missing). Show the score big and centered; update it the moment it changes.
   numbers, compare the distribution against the edges and re-tune if scores pile
   into the first or last buckets.
 
+### Session length (a house pattern: games stay short)
+
+- **A good run lasts 30-90 seconds.** These are one-tap arcade games, not
+  marathons. If a decent player can survive for minutes, the ramp is too slow.
+  Tune so the game feels threatening by ~20 seconds and brutal by ~60.
+- **Ramp with time, not just score.** Score-based ramps stall when the player
+  is good (high score = already winning). Time-based ramps guarantee the heat
+  arrives: meteor's fall speed doubles by 40 seconds and hits 2.5x by 60,
+  regardless of score.
+- **Design the difficulty curve on paper first.** Work out the numbers the way
+  you do scoring: fall time per rock at 0s / 20s / 60s, spawns per second,
+  concurrent threats. If the curve doesn't force mistakes inside a minute, it
+  isn't steep enough.
+- **Short sessions make every other system better.** Histograms fill faster,
+  the global leaderboard turns over, and "run it back" stays tempting instead
+  of exhausting.
+
 ## 6. Game-over and leaderboard flow
 
 `Arcade.gameOver()` handles everything: best line, username claim, score save

@@ -156,9 +156,9 @@
       }
       function rand(min, max) { return min + Math.random() * (max - min); }
       function fallSpeed() {
-        return Math.min(3.2, 2.2 + score / 400) * Math.min(2, 1 + elapsed / 120);
+        return Math.min(3.5, 2.6 + score / 300) * Math.min(2.5, 1 + elapsed / 40);
       }
-      function spawnInterval() { return Math.max(.35, .9 - score * .002); }
+      function spawnInterval() { return Math.max(.3, .8 - elapsed * .008 - score * .0015); }
       function spawn() {
         var r = 11 + Math.random() * 12;
         meteors.push({
@@ -252,8 +252,8 @@
         state = 'playing';
         score = 0; lives = 3; combo = 0; elapsed = 0;
         meteors = []; particles = []; rings = [];
-        flash = 0; shake = 0; spawnT = 0;
-        spawn(); spawn();
+        flash = 0; shake = 0; spawnT = 0.6;
+        spawn();
         applyPhase(1, true);
         syncHud();
         gameEl.classList.add('playing');
@@ -321,7 +321,7 @@
         if (state === 'playing') {
           spawnT -= dt;
           if (spawnT <= 0) {
-            if (meteors.length < 12) spawn();
+            if (meteors.length < 14) spawn();
             spawnT = spawnInterval() * rand(.85, 1.15);
           }
           var f = fallSpeed();
