@@ -114,7 +114,7 @@
       var keyL = false, keyR = false;
 
       var ROW_COLORS = ['#ff6b57', '#f5b942', '#b8e04a', '#45c8d8', '#9a7bff'];
-      var ROW_POINTS = [50, 40, 30, 20, 10];
+      var ROW_POINTS = [5, 4, 3, 2, 1];
       var COLS = 8, ROWS = 5;
 
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', Arcade.refreshColors);
@@ -262,7 +262,7 @@
           title: String(score),
           instruction: score === 0
             ? 'The bricks held their ground. Drag the paddle and tap to launch.'
-            : (score < 300 ? 'Solid smashing. Higher rows pay more. Aim up.' : 'Certified brick demolisher. One more run?'),
+            : (score < 30 ? 'Solid smashing. Higher rows pay more. Aim up.' : 'Certified brick demolisher. One more run?'),
           restartLabel: 'Smash again'
         });
       }
