@@ -1,6 +1,6 @@
 # Sean's Arcade
 
-Tiny one-tap web games with global leaderboards. Live at https://seans-arcade.vercel.app
+Tiny one-tap web games with global leaderboards. Live at https://one-tap-arcade.vercel.app
 
 - `public/` — hub page + one folder per game (self-contained HTML)
 - `api/scores.js` — leaderboard API (Vercel serverless function)
