@@ -1,10 +1,14 @@
 // Leaderboard backend: a single secret GitHub gist holding
-// { pulse: { scores: [...], plays: n }, ... }. Old { game: [...] } boards auto-migrate on read.
+// { pulse: { scores: [...], plays: n, hist: [...], runs: n }, users: {...} }.
+// Old { game: [...] } boards auto-migrate on read.
 // Env vars (set on the Vercel project): GIST_ID, GITHUB_TOKEN (encrypted, server-side only).
+
+const crypto = require('crypto');
 
 const GAMES = ['pulse', 'tower', 'breakout', 'lander', 'dodge'];
 const FILENAME = 'arcade-leaderboard.json';
 const MAX_ENTRIES = 10;
+const USER_RE = /^[A-Z0-9_]{3,12}$/;
 
 /* Score histogram: counts every completed run's final score (including 0s,
    which never reach the named leaderboard). Bucket i covers scores
@@ -36,6 +40,10 @@ function ghHeaders() {
   };
 }
 
+function sha256(s) {
+  return crypto.createHash('sha256').update(String(s)).digest('hex');
+}
+
 function normGame(v) {
   if (Array.isArray(v)) return { scores: v, plays: 0, hist: normHist(), runs: 0 };
   if (v && Array.isArray(v.scores)) return {
@@ -45,6 +53,29 @@ function normGame(v) {
     runs: Math.max(0, Number(v.runs) || 0),
   };
   return { scores: [], plays: 0, hist: normHist(), runs: 0 };
+}
+
+/* User accounts: { NAME: { tokenHash, created, bests } }. Tolerant of a
+   partial or malformed users block left over from older gists. */
+function normUsers(v) {
+  const out = {};
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    for (const name of Object.keys(v)) {
+      const u = v[name];
+      if (!u || typeof u.tokenHash !== 'string' || u.tokenHash.length !== 64) continue;
+      const bests = {};
+      for (const g of GAMES) {
+        const b = Number(u.bests && u.bests[g]);
+        if (Number.isInteger(b) && b >= 1 && b <= 99999) bests[g] = b;
+      }
+      out[name] = {
+        tokenHash: u.tokenHash,
+        created: Number.isFinite(Number(u.created)) ? Number(u.created) : 0,
+        bests,
+      };
+    }
+  }
+  return out;
 }
 
 async function readBoard() {
@@ -60,6 +91,7 @@ async function readBoard() {
   }
   const board = {};
   for (const g of GAMES) board[g] = normGame(data[g]);
+  board.users = normUsers(data.users);
   return board;
 }
 
@@ -72,13 +104,33 @@ async function writeBoard(board) {
   if (!r.ok) throw new Error('gist write failed: ' + r.status);
 }
 
+/* Entry cleaner: legacy 3-letter initials pass through untouched and claimed
+   usernames (up to 12 chars, letters/numbers/underscore) are preserved. */
 function cleanEntries(list) {
   return (Array.isArray(list) ? list : [])
     .filter((e) => e && typeof e.name === 'string' && Number.isInteger(e.score))
-    .map((e) => ({ name: e.name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3), score: e.score }))
+    .map((e) => ({ name: e.name.toUpperCase().replace(/[^A-Z0-9_]/g, '').slice(0, 12), score: e.score }))
     .filter((e) => e.name && e.score >= 1 && e.score <= 99999)
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_ENTRIES);
+}
+
+/* Global leaderboard: sum of a user's best score per game, ranked. */
+function globalBoard(users) {
+  const rows = [];
+  for (const name of Object.keys(users)) {
+    const u = users[name];
+    const bests = {};
+    let total = 0;
+    for (const g of GAMES) {
+      const b = Math.max(0, Number(u.bests && u.bests[g]) || 0);
+      bests[g] = b;
+      total += b;
+    }
+    if (total > 0) rows.push({ username: name, total, bests });
+  }
+  rows.sort((a, b) => b.total - a.total || a.username.localeCompare(b.username));
+  return rows.slice(0, 25);
 }
 
 module.exports = async function handler(req, res) {
@@ -86,7 +138,18 @@ module.exports = async function handler(req, res) {
     if (!GIST_ID || !GITHUB_TOKEN) return json(res, 500, { error: 'unavailable' });
 
     if (req.method === 'GET') {
-      const game = req.query.game;
+      const query = req.query || {};
+      if (query.board === 'global') {
+        const board = await readBoard();
+        const payload = JSON.stringify({ board: globalBoard(board.users) });
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
+        });
+        res.end(payload);
+        return;
+      }
+      const game = query.game;
       if (!GAMES.includes(game)) return json(res, 400, { error: 'invalid' });
       const board = await readBoard();
       const g = board[game];
@@ -101,14 +164,31 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'POST') {
       const body = req.body || {};
+      const board = await readBoard();
+
+      if (body.action === 'claim') {
+        const username = String(body.username || '').toUpperCase();
+        if (!USER_RE.test(username)) return json(res, 400, { error: 'invalid' });
+        if (board.users[username]) return json(res, 409, { error: 'taken' });
+        const token = crypto.randomBytes(32).toString('hex');
+        board.users[username] = {
+          tokenHash: sha256(token),
+          created: Date.now(),
+          bests: {},
+        };
+        await writeBoard(board);
+        return json(res, 200, { ok: true, username, token });
+      }
+
       const game = body.game;
       if (!GAMES.includes(game)) return json(res, 400, { error: 'invalid' });
-      const board = await readBoard();
+
       if (body.play === true) {
         board[game].plays += 1;
         await writeBoard(board);
         return json(res, 200, { ok: true, plays: board[game].plays });
       }
+
       if (body.stat === true) {
         const stScore = Number(body.score);
         if (!Number.isInteger(stScore) || stScore < 0 || stScore > 99999) {
@@ -121,17 +201,28 @@ module.exports = async function handler(req, res) {
         await writeBoard(board);
         return json(res, 200, { ok: true });
       }
-      const name = String(body.name || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
-      const score = Number(body.score);
-      if (!name || !Number.isInteger(score) || score < 1 || score > 99999) {
-        return json(res, 400, { error: 'invalid' });
+
+      if (body.action === 'save') {
+        const username = String(body.username || '').toUpperCase();
+        const user = board.users[username];
+        if (!user || sha256(String(body.token || '')) !== user.tokenHash) {
+          return json(res, 403, { error: 'bad-token' });
+        }
+        const score = Number(body.score);
+        if (!Number.isInteger(score) || score < 1 || score > 99999) {
+          return json(res, 400, { error: 'invalid' });
+        }
+        const best = Math.max(Math.floor(Number(user.bests[game]) || 0), score);
+        user.bests[game] = best;
+        const entries = cleanEntries(board[game].scores).filter((e) => e.name !== username);
+        entries.push({ name: username, score: best });
+        entries.sort((a, b) => b.score - a.score);
+        board[game].scores = entries.slice(0, MAX_ENTRIES);
+        await writeBoard(board);
+        return json(res, 200, { ok: true, best });
       }
-      const entries = cleanEntries(board[game].scores);
-      entries.push({ name, score, at: Date.now() });
-      entries.sort((a, b) => b.score - a.score || (a.at || 0) - (b.at || 0));
-      board[game].scores = entries.slice(0, MAX_ENTRIES).map(({ name, score }) => ({ name, score }));
-      await writeBoard(board);
-      return json(res, 200, { ok: true, scores: board[game].scores, plays: board[game].plays });
+
+      return json(res, 400, { error: 'invalid' });
     }
 
     res.setHeader('Allow', 'GET, POST');
@@ -142,4 +233,17 @@ module.exports = async function handler(req, res) {
 };
 
 // Test hook (no-op on Vercel).
-module.exports._test = { histBin, normHist, HIST_EDGES };
+module.exports._test = {
+  GAMES,
+  USER_RE,
+  FILENAME,
+  HIST_EDGES,
+  histBin,
+  normHist,
+  normGame,
+  normUsers,
+  cleanEntries,
+  globalBoard,
+  sha256,
+  handler: module.exports,
+};

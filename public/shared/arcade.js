@@ -1,6 +1,7 @@
 /* ============================================================
    Arcade shared library: theme colors, audio, toast, leaderboard,
-   save flow, overlay wiring, run-flow helpers, and hub best-scores.
+   username accounts, save flow, overlay wiring, run-flow helpers,
+   and hub best-scores.
 
    Each game page sets a tiny window.ARCADE config BEFORE loading
    this file:
@@ -24,6 +25,45 @@
 (function () {
   'use strict';
 
+  /* ---------- username accounts ---------- */
+  /* The browser keeps {username, token} under "arcade-user". The server
+     stores only the SHA-256 hash of the token, never the token itself. */
+  var USER_KEY = 'arcade-user';
+  function getUser() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+      if (raw && typeof raw.username === 'string' && raw.username && typeof raw.token === 'string' && raw.token) return raw;
+    } catch (e) {}
+    return null;
+  }
+  function setUser(u) {
+    try { localStorage.setItem(USER_KEY, JSON.stringify(u)); } catch (e) {}
+    return u;
+  }
+  function clearUser() {
+    try { localStorage.removeItem(USER_KEY); } catch (e) {}
+  }
+  function postApi(body) {
+    return fetch('/api/scores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; });
+    });
+  }
+  function claimUser(username) {
+    return postApi({ action: 'claim', username: username }).then(function (d) {
+      if (d && d.ok && d.token) setUser({ username: d.username, token: d.token });
+      return d;
+    });
+  }
+  function saveUserScore(game, score) {
+    var u = getUser();
+    if (!u) return Promise.reject(new Error('no-user'));
+    return postApi({ action: 'save', username: u.username, token: u.token, game: game, score: score });
+  }
+
   /* The hub runs its own mode: load per-card best scores. */
   if (document.body && document.body.classList.contains('hub')) {
     initHub();
@@ -46,7 +86,12 @@
   var boardTitleEl = document.querySelector('#board h2');
   var resultLabelEl = document.querySelector('.result-label');
   var boardList = document.getElementById('boardList');
-  var initialsEl = document.getElementById('initials');
+  var entryEl = document.getElementById('entry');
+  var usernameEl = document.getElementById('username');
+  var claimBtn = document.getElementById('claimBtn');
+  var claimWrap = document.getElementById('claimWrap');
+  var saveWrap = document.getElementById('saveWrap');
+  var saveAsEl = document.getElementById('saveAs');
   var saveBtn = document.getElementById('saveScore');
   var viewLeadersBtn = document.getElementById('viewLeaders');
   var boardBackBtn = document.getElementById('boardBack');
@@ -154,7 +199,7 @@
         html += '<li' + (me ? ' class="me"' : '') + '><span>' + (i + 1) + '. ' + esc(s.name) + '</span><span>' + esc(s.score) + '</span></li>';
       });
     } else {
-      html = '<li class="empty"><span>No scores yet — be the first.</span></li>';
+      html = '<li class="empty"><span>No scores yet. Be the first.</span></li>';
     }
     boardList.innerHTML = html;
     overlay.classList.add('board-on');
@@ -171,36 +216,66 @@
     if (viewLeadersBtn) setTimeout(function () { viewLeadersBtn.focus({ preventScroll: true }); }, 120);
   }
 
-  if (saveBtn) saveBtn.addEventListener('click', function () {
-    var name = (initialsEl.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+  function showClaimForm(show) {
+    if (claimWrap) claimWrap.hidden = !show;
+    if (saveWrap) saveWrap.hidden = show;
+  }
+  if (claimBtn) claimBtn.addEventListener('click', function () {
+    var name = (usernameEl.value || '').trim().toUpperCase();
     if (!name) {
-      initialsEl.classList.remove('shake'); void initialsEl.offsetWidth; initialsEl.classList.add('shake');
-      showToast('Enter initials', colors.coral);
+      usernameEl.classList.remove('shake'); void usernameEl.offsetWidth; usernameEl.classList.add('shake');
+      showToast('Enter a username', colors.coral);
       return;
     }
-    try { localStorage.setItem('arcade-initials', name); } catch (e) {}
+    claimBtn.disabled = true;
+    var label = claimBtn.textContent;
+    claimBtn.textContent = 'Claiming…';
+    claimUser(name)
+      .then(function (d) {
+        if (d && d.ok) {
+          if (saveAsEl) saveAsEl.textContent = d.username;
+          showClaimForm(false);
+        } else if (d && d.error === 'taken') {
+          showToast('Name taken', colors.coral);
+        } else {
+          showToast('Use 3 to 12 letters, numbers, or underscores', colors.coral);
+        }
+      })
+      .catch(function () { showToast("Couldn't claim, offline?", colors.coral); })
+      .then(function () { claimBtn.disabled = false; claimBtn.textContent = label; });
+  });
+  if (saveBtn) saveBtn.addEventListener('click', function () {
+    var u = getUser();
+    if (!u) { showClaimForm(true); return; }
     saveBtn.disabled = true;
     var label = saveBtn.textContent;
     saveBtn.textContent = 'Saving…';
     var finalScore = pendingScore;
-    fetch('/api/scores', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game: game, name: name, score: finalScore })
-    }).then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
-      .then(function () {
-        overlay.classList.remove('entry-on');
-        var key = name + '|' + finalScore;
-        return boardCache.then(function (scores) {
-          var list = (scores || []).slice();
-          list.push({ name: name, score: finalScore });
-          list.sort(function (a, b) { return b.score - a.score; });
-          list = list.slice(0, 10);
-          boardCache = Promise.resolve(list);
-          renderBoard(list, key);
-        });
+    saveUserScore(game, finalScore)
+      .then(function (d) {
+        if (d && d.ok) {
+          overlay.classList.remove('entry-on');
+          var best = (d.best != null ? d.best : finalScore);
+          var key = u.username + '|' + best;
+          var cached = boardCache || fetchBoard();
+          return cached.then(function (scores) {
+            var list = (scores || []).filter(function (s) { return s.name !== u.username; });
+            list.push({ name: u.username, score: best });
+            list.sort(function (a, b) { return b.score - a.score; });
+            list = list.slice(0, 10);
+            boardCache = Promise.resolve(list);
+            renderBoard(list, key);
+          });
+        }
+        if (d && d.error === 'bad-token') {
+          clearUser();
+          showToast('Name not recognized', colors.coral);
+          showClaimForm(true);
+          return;
+        }
+        showToast("Couldn't save, offline?", colors.coral);
       })
-      .catch(function () { showToast("Couldn't save — offline?", colors.coral); })
+      .catch(function () { showToast("Couldn't save, offline?", colors.coral); })
       .then(function () { saveBtn.disabled = false; saveBtn.textContent = label; });
   });
   if (viewLeadersBtn) viewLeadersBtn.addEventListener('click', showLeaders);
@@ -250,8 +325,14 @@
       overlay.classList.remove('entry-on', 'board-on', 'leaders-on');
     }
     if (boardList) boardList.innerHTML = '';
-    if (pendingScore > 0 && initialsEl) {
-      try { initialsEl.value = localStorage.getItem('arcade-initials') || ''; } catch (e) {}
+    if (pendingScore > 0 && entryEl) {
+      var u = getUser();
+      if (u) {
+        if (saveAsEl) saveAsEl.textContent = u.username;
+        showClaimForm(false);
+      } else {
+        showClaimForm(true);
+      }
       if (overlay) overlay.classList.add('entry-on');
     }
     showRunPercentile(pendingScore);
@@ -317,6 +398,9 @@
     tone: tone,
     isMuted: function () { return muted; },
     audioNodes: function () { return (audio && audioOut) ? { ctx: audio, out: audioOut } : null; },
+    getUser: getUser,
+    claimUser: claimUser,
+    saveUserScore: saveUserScore,
     showToast: showToast,
     fetchBoard: fetchBoard,
     renderBoard: renderBoard,
@@ -329,6 +413,76 @@
   /* ---------- hub mode ---------- */
   function initHub() {
     var games = ['pulse', 'tower', 'breakout', 'lander', 'dodge'];
+    var toastEl = document.getElementById('toast');
+    function hubToast(text, color) {
+      if (!toastEl) return;
+      toastEl.textContent = text;
+      toastEl.style.color = color || '#9df2ff';
+      toastEl.classList.remove('pop'); void toastEl.offsetWidth; toastEl.classList.add('pop');
+    }
+    function renderHubUser() {
+      var host = document.getElementById('hubUser');
+      if (!host) return;
+      var u = getUser();
+      host.innerHTML = u
+        ? '<p class="hub-user-line">Playing as <b>' + esc(u.username) + '</b></p>'
+        : '<div class="hub-claim"><input id="hubUsername" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="USERNAME" aria-label="Username" /><button id="hubClaimBtn" type="button">Claim username</button></div>';
+      var input = document.getElementById('hubUsername');
+      var btn = document.getElementById('hubClaimBtn');
+      if (input && btn) {
+        var onClaim = function () {
+          var n = (input.value || '').trim().toUpperCase();
+          if (!n) { hubToast('Enter a username', '#ffb300'); return; }
+          btn.disabled = true;
+          claimUser(n)
+            .then(function (d) {
+              if (d && d.ok) renderHubUser();
+              else if (d && d.error === 'taken') hubToast('Name taken', '#ffb300');
+              else hubToast('Use 3 to 12 letters, numbers, or underscores', '#ffb300');
+            })
+            .catch(function () { hubToast("Couldn't claim, offline?", '#ffb300'); })
+            .then(function () { btn.disabled = false; });
+        };
+        btn.addEventListener('click', onClaim);
+        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') onClaim(); });
+      }
+    }
+    function loadGlobal() {
+      var listEl = document.getElementById('globalList');
+      if (!listEl) return;
+      function render(rows) {
+        if (!rows || !rows.length) {
+          listEl.innerHTML = '<li class="empty"><span>No global plays yet. Be the first.</span></li>';
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < rows.length; i++) {
+          var r = rows[i];
+          var bits = [];
+          for (var g = 0; g < games.length; g++) {
+            var key = games[g];
+            bits.push(key + ' ' + (r.bests[key] != null ? r.bests[key] : 0));
+          }
+          html += '<li title="' + esc(bits.join(', ')) + '"><span class="grank">' + (i + 1) + '</span><span class="gname">' + esc(r.username) + '</span><span class="gtotal">' + r.total + '</span></li>';
+        }
+        listEl.innerHTML = html;
+      }
+      try {
+        var cached = JSON.parse(localStorage.getItem('arcade-global') || 'null');
+        if (cached && Date.now() - cached.t < 300000 && Array.isArray(cached.rows)) render(cached.rows);
+      } catch (e) {}
+      fetch('/api/scores?board=global&_=' + Date.now())
+        .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
+        .then(function (d) {
+          var rows = (d && d.board) || [];
+          render(rows);
+          try { localStorage.setItem('arcade-global', JSON.stringify({ t: Date.now(), rows: rows })); } catch (e) {}
+        })
+        .catch(function () { render([]); });
+    }
+    renderHubUser();
+    loadGlobal();
+
     var plays = {};
     var done = 0;
     function fmt(n) { return n.toLocaleString('en-US') + (n === 1 ? ' play' : ' plays'); }
