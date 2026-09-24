@@ -663,9 +663,8 @@
       var meta = el.querySelector('.spread-meta');
       if (!histOk) {
         if (typeof n === 'number') {
-          var you = myPlays(gameKey);
           dist.hidden = true;
-          meta.innerHTML = fmtPlays(n) + (you > 0 ? ' &middot; you&nbsp;<b>' + you + '</b>' : '');
+          meta.innerHTML = fmtPlays(n);
           el.hidden = false;
         }
         return;
@@ -682,8 +681,6 @@
       var bits = [];
       if (best && best > 0) bits.push('best <b>' + best.toLocaleString('en-US') + '</b>');
       if (typeof n === 'number') bits.push('<b>' + n.toLocaleString('en-US') + '</b>&nbsp;plays');
-      var you = myPlays(gameKey);
-      if (you > 0) bits.push('you&nbsp;<b>' + you + '</b>');
       meta.innerHTML = bits.join(' &middot; ');
       el.hidden = false;
     }
