@@ -222,6 +222,11 @@
       audioOut.gain.value = .9;
       audioOut.connect(audio.destination);
     }
+    /* iOS Safari puts Web Audio in the ambient session, which the hardware
+       silent switch mutes. Claiming the playback session opts out of that.
+       Feature-detected, no-op everywhere else. Re-asserted on every call
+       because WebKit can reset it after an interruption. */
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
     if (audio.state === 'suspended') {
       audio.resume().then(function () { if (onReady) onReady(); }).catch(function () {});
     } else if (onReady) {
