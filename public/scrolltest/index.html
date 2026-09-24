@@ -9,7 +9,7 @@
   <title>Arcade</title>
   <link rel="stylesheet" href="/shared/arcade.css" />
 
-<style>
+<style id="vlabel-style">
 #vlabel{position:fixed;top:0;left:0;right:0;z-index:99;background:#000;color:#9df2ff;
 font:600 13px/1.4 monospace;padding:10px 12px;border-bottom:1px solid #01cdfe}
 #vlabel a{color:#ffb300;margin:0 6px}
@@ -26,11 +26,14 @@ body.hub{padding-top:64px}
     '4': '.game-card,.game-card:hover{box-shadow:none!important}.go{box-shadow:none!important}.wrap h1,.gtotal,.kicker{text-shadow:none!important}.dist-best{box-shadow:none!important}.game-side{clip-path:none!important;background:rgba(1,205,254,.06)!important}.grain{display:none!important}body::before,body.hub::after{display:none!important}'
   }[v] || '';
   var names = {'0':'control (current look)','1':'no glow shadows','2':'no diagonal clip on cards','3':'no grain/grid/glow background layers','4':'everything stripped'};
+  if (v === '5') { var vs = document.getElementById('vlabel-style'); if (vs) vs.remove(); }
   if (css) { var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st); }
+  if (v === '5') { var kill = document.querySelector('#vlabel-style'); }
   document.addEventListener('DOMContentLoaded', function(){
+    if (v === '5') return;
     var d = document.createElement('div'); d.id = 'vlabel';
     d.innerHTML = 'TEST v' + v + ': ' + names[v] + '<br>' +
-      [0,1,2,3,4].map(function(i){ return '<a href="?v='+i+'">v'+i+'</a>'; }).join(' ');
+      [0,1,2,3,4,5].map(function(i){ return '<a href="?v='+i+'">v'+i+'</a>'; }).join(' ');
     document.body.appendChild(d);
   });
 })();
