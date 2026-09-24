@@ -123,14 +123,16 @@ function cleanEntries(list) {
     .slice(0, MAX_ENTRIES);
 }
 
-/* Global leaderboard: sum of a user's best score per game, ranked. */
+/* Global leaderboard: sum of a user's best score per visible game, ranked.
+   Breakout is hidden from the hub; its stored scores are kept but not counted. */
+const GLOBAL_GAMES = ['pulse', 'tower', 'lander', 'dodge', 'lanes'];
 function globalBoard(users) {
   const rows = [];
   for (const name of Object.keys(users)) {
     const u = users[name];
     const bests = {};
     let total = 0;
-    for (const g of GAMES) {
+    for (const g of GLOBAL_GAMES) {
       const b = Math.max(0, Number(u.bests && u.bests[g]) || 0);
       bests[g] = b;
       total += b;

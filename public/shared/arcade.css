@@ -31,7 +31,7 @@ body {
   font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   -webkit-tap-highlight-color: transparent;
 }
-body.game { overflow: hidden; overscroll-behavior: none; user-select: none; }
+body.game { overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
 body.hub {
   display: grid;
   place-items: center;
