@@ -440,7 +440,9 @@ h1 {
 .game-card {
   display: block;
   padding: 26px 24px 22px;
-  background: var(--panel);
+  /* opaque: var(--panel) is 88% alpha, which forces per-frame blending
+     against the fixed grain layer while scrolling on iOS */
+  background: #05070f;
   border: 2px solid var(--cyan);
   border-radius: 24px 24px 8px 24px;
   box-shadow: 0 0 18px rgba(1,205,254,.35), inset 0 0 14px rgba(1,205,254,.08), 0 18px 60px var(--shadow);
@@ -662,7 +664,7 @@ body.hub .toast { position: fixed; z-index: 6; }
   display: flex; align-items: center; justify-content: center;
   padding: 2px 0 10px;
 }
-.game-shot svg { width: min(100%, 148px); height: auto; display: block; filter: drop-shadow(0 0 6px rgba(1,205,254,.45)); }
+.game-shot svg { width: min(100%, 148px); height: auto; display: block; /* no drop-shadow: CSS filters force repaints on scroll on iOS; the card glow carries the look */ }
 
 .mark:has(svg) { border: none; border-radius: 0; }
 .mark:has(svg)::before, .mark:has(svg)::after { content: none; }
