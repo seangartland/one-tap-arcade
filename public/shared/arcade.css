@@ -658,7 +658,9 @@ body.hub .toast { position: fixed; z-index: 6; }
 }
 #globalList .gtotal,
 #boardList .gtotal {
-  color: var(--lime);
+  /* Pinned to amber: games override --lime per phase, which would tint
+     in-game scores away from the hub's color. */
+  color: #ffb300;
   font: 700 15px/1 DM Mono, monospace;
   text-shadow: 0 0 12px rgba(255,179,0,.5);
 }
