@@ -465,3 +465,16 @@ h1 {
 .game-card .go:focus-visible, .game-card .leaders-link:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 .foot { margin: 34px 0 0; color: var(--muted); font: 400 11px/1.6 DM Mono, monospace; letter-spacing: .08em; text-transform: uppercase; }
 @media (max-width: 520px) { .cards { grid-template-columns: 1fr; } }
+
+/* ================= diagonal-split hub cards ================= */
+.game-card.game-split { display: flex; align-items: stretch; padding: 0; overflow: hidden; }
+.game-info { flex: 1.15; min-width: 0; padding: 26px 24px 22px; }
+.game-shot {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px 16px 20px 30px;
+  color: var(--cyan);
+  background: linear-gradient(135deg, rgba(1,205,254,.12), rgba(1,205,254,.03));
+  clip-path: polygon(18% 0, 100% 0, 100% 100%, 0 100%);
+}
+.game-shot svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 0 6px rgba(1,205,254,.45)); }
