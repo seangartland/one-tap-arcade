@@ -234,11 +234,25 @@
       }
 
       canvas.addEventListener('pointerdown', function (e) {
+        if (e.pointerType === 'touch') return;
         e.preventDefault();
         Arcade.initAudio();
         if (state !== 'playing') return;
-        move(e.clientX < W / 2 ? -1 : 1);
+        var r = canvas.getBoundingClientRect();
+        var left = (e.clientX - r.left) < r.width / 2;
+        move(left ? -1 : 1);
       });
+
+      canvas.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        Arcade.initAudio();
+        if (state !== 'playing') return;
+        var t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+        if (!t) return;
+        var r = canvas.getBoundingClientRect();
+        var left = (t.clientX - r.left) < r.width / 2;
+        move(left ? -1 : 1);
+      }, { passive: false });
 
       document.addEventListener('keydown', function (e) {
         if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
