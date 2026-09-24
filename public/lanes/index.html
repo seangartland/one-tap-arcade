@@ -86,7 +86,44 @@
       var W = 0, H = 0, dpr = 1;
       var score = 0;
       var elapsed = 0;
+      var schemeMQ = { matches: true, addEventListener: function () {} }; // Tron theme: dark-only
+      var PHASES = [
+        { name: 'Daybreak',
+          light: { cyan: '#087f8c', coral: '#e95d45', lime: '#bbda45' },
+          dark:  { cyan: '#4bc7cf', coral: '#ff765f', lime: '#cde85a' } },
+        { name: 'Dusk',
+          light: { cyan: '#5a4fcf', coral: '#e8933c', lime: '#2fa37c' },
+          dark:  { cyan: '#9a8ff5', coral: '#f2b25c', lime: '#57d6a0' } },
+        { name: 'Ember',
+          light: { cyan: '#9a3412', coral: '#dc2626', lime: '#d97706' },
+          dark:  { cyan: '#fb923c', coral: '#f87171', lime: '#fbbf24' } },
+        { name: 'Tide',
+          light: { cyan: '#0e7490', coral: '#2563eb', lime: '#0d9e6f' },
+          dark:  { cyan: '#22d3ee', coral: '#60a5fa', lime: '#34d399' } },
+        { name: 'Noir',
+          light: { cyan: '#52525b', coral: '#db2777', lime: '#a3a3a3' },
+          dark:  { cyan: '#a1a1aa', coral: '#f472b6', lime: '#d4d4d8' } }
+      ];
       var phase = 1;
+      function applyPhase(n, silent) {
+        phase = n;
+        var trio = schemeMQ.matches ? PHASES[n - 1].dark : PHASES[n - 1].light;
+        var root = document.documentElement.style;
+        root.setProperty('--cyan', trio.cyan);
+        root.setProperty('--coral', trio.coral);
+        root.setProperty('--lime', trio.lime);
+        Arcade.refreshColors();
+        if (n > 1 && !silent) showToast(PHASES[n - 1].name, colors.cyan);
+      }
+      function checkPhase() {
+        var n = Math.min(5, 1 + Math.floor(elapsed / 15));
+        if (n !== phase) {
+          applyPhase(n);
+          tone(520, .12, 'sine', .06, 0);
+          tone(392, .16, 'sine', .05, .09);
+        }
+      }
+      schemeMQ.addEventListener('change', function(){ applyPhase(phase, true); });
       var last = 0;
       var blocks = [];
       var particles = [];
@@ -179,7 +216,7 @@
       function startGame() {
         Arcade.startFlow();
         state = 'playing';
-        score = 0; elapsed = 0; phase = 1;
+        score = 0; elapsed = 0; phase = 0;
         blocks = []; particles = []; rings = []; trail = [];
         flash = 0; shake = 0;
         lane = 1; laneF = 1;
@@ -267,13 +304,7 @@
 
       function update(dt) {
         elapsed += dt;
-        var newPhase = 1 + Math.floor(elapsed / 15);
-        if (newPhase !== phase) {
-          phase = newPhase;
-          showToast('Speed up', colors.coral);
-          tone(520, .12, 'sine', .06, 0);
-          tone(392, .16, 'sine', .05, .09);
-        }
+        checkPhase();
 
         // lane slide
         var prevF = laneF;
