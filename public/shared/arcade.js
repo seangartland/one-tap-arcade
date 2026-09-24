@@ -634,7 +634,7 @@
     var stats = {};
     var myBests = null;
     var done = 0;
-    function fmt(n) { return n.toLocaleString('en-US') + (n === 1 ? ' play' : ' plays'); }
+    function fmtPlays(n) { return '<b>' + n.toLocaleString('en-US') + '</b>&nbsp;' + (n === 1 ? 'play' : 'plays'); }
     function myPlays(gameKey) {
       try {
         var mp = JSON.parse(localStorage.getItem('arcade-myplays') || '{}');
@@ -703,7 +703,7 @@
         if (typeof n === 'number') {
           var you = myPlays(gameKey);
           dist.hidden = true;
-          meta.innerHTML = 'No scores yet &middot; <b>' + fmt(n) + '</b>&nbsp;plays' + (you > 0 ? ' &middot; you&nbsp;<b>' + you + '</b>' : '');
+          meta.innerHTML = 'No scores yet &middot; ' + fmtPlays(n) + (you > 0 ? ' &middot; you&nbsp;<b>' + you + '</b>' : '');
           el.hidden = false;
         }
         return;
