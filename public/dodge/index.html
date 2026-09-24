@@ -163,11 +163,11 @@
         scoreEl.textContent = String(score);
       }
 
-      function spawnShard() {
+      function spawnShard(startY) {
         var size = rand(9, 15);
         shards.push({
           x: rand(-10, W + 10),
-          y: -30,
+          y: startY === undefined ? -30 : startY,
           vx: rand(-46, 46),
           vy: (150 + elapsed * 4.2 + rand(0, 90)) * (1 + (phase - 1) * .16),
           size: size,
@@ -183,7 +183,8 @@
         score = 0; scoreFloat = 0; elapsed = 0; phase = 1;
         shards = []; particles = []; rings = []; trail = [];
         flash = 0; redPulse = 0; shake = 0;
-        spawnTimer = .6;
+        spawnTimer = .5;
+        spawnShard(-30); spawnShard(-160); spawnShard(-290);
         px = tx = W / 2; py = ty = H * .68;
         setScore();
         gameEl.classList.add('playing');
@@ -285,7 +286,7 @@
         // spawn shards
         if (state === 'playing') {
           spawnTimer -= dt;
-          var interval = Math.max(.26, 1.02 - elapsed * .011);
+          var interval = Math.max(.26, 0.8 - elapsed * .011);
           if (spawnTimer <= 0) { spawnShard(); spawnTimer = interval * rand(.75, 1.25); }
         }
 

@@ -184,7 +184,7 @@
       function startGame() {
         Arcade.startFlow();
         state = 'playing'; score = 0; streak = 0; lives = 3; phase = 0;
-        angle = -Math.PI / 2; direction = Math.random() > .5 ? 1 : -1; speed = 2.3;
+        angle = -Math.PI / 2; direction = Math.random() > .5 ? 1 : -1; speed = 3.2;
         particles = []; rings = []; flash = 0; shake = 0;
         newTarget(); setScore(); setLives();
         gameEl.classList.add('playing');
