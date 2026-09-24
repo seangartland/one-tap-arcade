@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2305070f'/%3E%3Cpath d='M11 4 V28 M21 4 V28' stroke='%2301cdfe' stroke-width='2' opacity='.6'/%3E%3Crect x='4' y='6' width='5' height='7' rx='1' fill='%23ffb300'/%3E%3Cpath d='M16 18 L20 27 H12 Z' fill='%2301cdfe'/%3E%3C/svg%3E" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#05070f" />
+  <title>Lanes - a three-lane neon dodger</title>
+  <link rel="stylesheet" href="/shared/arcade.css" />
+  <style>
+    canvas { touch-action: none; }
+  </style>
+</head>
+<body class="game">
+  <main class="game" id="game">
+    <canvas id="canvas" tabindex="0" aria-label="Three lanes. Tap the left or right half of the screen to switch lanes and dodge the falling blocks."></canvas>
+    <div class="hud hud-center" aria-live="polite">
+      <div class="score-wrap">
+        <span class="score" id="score">0</span>
+      </div>
+    </div>
+    <div class="toast" id="toast" aria-live="polite"></div>
+    <div class="hint">Tap a side to switch · <span class="key">←</span> <span class="key">→</span></div>
+
+    <section class="overlay" id="overlay" aria-modal="true" role="dialog" aria-labelledby="title">
+      <div class="card">
+        <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M40 8 V60 M80 8 V60" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".4" fill="none"/><rect x="12" y="12" width="24" height="9" rx="2" fill="currentColor" opacity=".45"/><rect x="84" y="20" width="24" height="9" rx="2" fill="currentColor" opacity=".45"/><path d="M60 28 L70 52 H50 Z" fill="currentColor"/></svg></div>
+        <div class="result-label">Run complete</div>
+        <h1 id="title">Lanes.</h1>
+        <p class="instruction" id="instruction">Tap left or right. Weave through the rain.</p>
+        <p class="session-best" id="sessionBest">Session best · 0</p>
+        <p class="run-pct" id="runPct" hidden></p>
+        <div id="entry">
+          <div id="claimWrap">
+            <label for="username">Claim your username</label>
+            <div class="entry-row">
+              <input id="username" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Your username" />
+              <button id="claimBtn" class="claim" type="button">Claim</button>
+            </div>
+          </div>
+          <button class="linklike" id="skipSave" type="button">Skip</button>
+        </div>
+        <div id="board" aria-live="polite">
+          <h2>Lanes · Global leaders</h2>
+          <ol id="boardList"></ol>
+          <button class="linklike" id="boardBack" type="button">Back</button>
+        </div>
+        <button class="primary" id="start">Start dodging</button>
+        <div class="card-foot"><button class="linklike" id="viewLeaders" type="button">Leaderboard</button></div>
+      </div>
+    </section>
+
+    <button class="sound" id="sound" type="button" aria-label="Mute sound" aria-pressed="true">
+      <svg class="on" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="M17 9.2c.7.7 1 1.6 1 2.8s-.3 2.1-1 2.8M19.5 6.8c1.4 1.4 2.1 3.1 2.1 5.2s-.7 3.8-2.1 5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <svg class="off" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="m17.5 9 4 4m0-4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+    <a class="home" href="../">Arcade</a>
+    <div class="grain" aria-hidden="true"></div>
+  </main>
+
+  <script>
+    window.ARCADE = {
+      game: 'lanes',
+      tagline: 'Tap left or right to switch lanes. Dodge the rain.',
+      startLabel: 'Start dodging',
+      restartLabel: 'Run it back',
+      resultLabel: 'Run complete',
+      boardHeading: 'Lanes · Global leaders'
+    };
+  </script>
+  <script src="/shared/arcade.js"></script>
+
+  <script>
+    (function () {
+      'use strict';
+      var canvas = document.getElementById('canvas');
+      var ctx = canvas.getContext('2d');
+      var gameEl = Arcade.gameEl;
+      var scoreEl = document.getElementById('score');
+      var tone = Arcade.tone;
+      var showToast = Arcade.showToast;
+      var colors = Arcade.colors;
+
+      var state = 'ready';
+      var W = 0, H = 0, dpr = 1;
+      var score = 0;
+      var elapsed = 0;
+      var phase = 1;
+      var last = 0;
+      var blocks = [];
+      var particles = [];
+      var rings = [];
+      var stars = [];
+      var nebulas = [];
+      var trail = [];
+      var flash = 0;
+      var shake = 0;
+      var spawnTimer = 0;
+      var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // player + playfield
+      var lane = 1, laneF = 1;
+      var px = 0, py = 0, tilt = 0;
+      var pfX = 0, pfW = 0, laneW = 0;
+      var SHIP_R = 13;
+      var BLOCK_H = 30;
+
+      function laneCenter(i) { return pfX + laneW * (i + .5); }
+
+      function layout() {
+        pfW = Math.min(W * .92, 440);
+        pfX = (W - pfW) / 2;
+        laneW = pfW / 3;
+        py = H * .78;
+        px = laneCenter(laneF);
+      }
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = window.innerWidth; H = window.innerHeight;
+        canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        layout();
+        initField();
+      }
+      window.addEventListener('resize', resize, { passive: true });
+
+      function rand(min, max) { return min + Math.random() * (max - min); }
+
+      function initField() {
+        stars = [];
+        var n = Math.round(Math.min(150, W * H / 10000));
+        for (var i = 0; i < n; i++) {
+          stars.push({ x: Math.random() * W, y: Math.random() * H, s: rand(.6, 1.9), spd: rand(10, 42), tw: Math.random() * Math.PI * 2 });
+        }
+        nebulas = [
+          { x: W * .2, y: H * .25, r: Math.max(W, H) * .32, c: '1,205,254', vx: 6, vy: 3, ph: 0 },
+          { x: W * .82, y: H * .7, r: Math.max(W, H) * .28, c: '255,179,0', vx: -5, vy: 4, ph: 2 },
+          { x: W * .6, y: H * .1, r: Math.max(W, H) * .22, c: '80,160,220', vx: 4, vy: -3, ph: 4 }
+        ];
+      }
+
+      function shiftSound() {
+        tone(620, .07, 'sine', .05, 0);
+        tone(820, .08, 'sine', .035, .035);
+      }
+      function passSound() {
+        tone(990, .07, 'sine', .045, 0);
+      }
+      function deathSound() {
+        tone(96, .32, 'sine', .2, 0);
+        tone(58, .5, 'triangle', .16, .02);
+        tone(180, .18, 'sawtooth', .06, 0);
+      }
+
+      function setScore() {
+        scoreEl.textContent = String(score);
+      }
+
+      function speed() { return Math.min(560, 200 + elapsed * 7); }
+      function rowInterval() { return Math.max(.4, .9 - elapsed * .012); }
+      function doubleChance() { return Math.min(.68, .12 + elapsed * .014); }
+
+      function blockFor(l, y) {
+        return { lane: l, y: y, h: BLOCK_H, scored: false, ph: Math.random() * Math.PI * 2 };
+      }
+
+      // Never blocks all three lanes: doubles always leave one lane open.
+      function spawnRow(y) {
+        if (Math.random() < doubleChance()) {
+          var free = Math.floor(Math.random() * 3);
+          for (var i = 0; i < 3; i++) if (i !== free) blocks.push(blockFor(i, y));
+        } else {
+          blocks.push(blockFor(Math.floor(Math.random() * 3), y));
+        }
+      }
+
+      function startGame() {
+        Arcade.startFlow();
+        state = 'playing';
+        score = 0; elapsed = 0; phase = 1;
+        blocks = []; particles = []; rings = []; trail = [];
+        flash = 0; shake = 0;
+        lane = 1; laneF = 1;
+        layout();
+        spawnTimer = .55;
+        setScore();
+        gameEl.classList.add('playing');
+        tone(440, .09, 'sine', .07, 0);
+        tone(660, .13, 'sine', .06, .065);
+        canvas.focus({ preventScroll: true });
+      }
+
+      function burst(x, y, color, count) {
+        if (reduced) count = Math.min(count, 4);
+        for (var i = 0; i < count; i++) {
+          var a = Math.random() * Math.PI * 2;
+          var v = rand(55, 190);
+          particles.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, size: rand(2, 5), color: color });
+        }
+      }
+
+      function die() {
+        if (state !== 'playing') return;
+        state = 'dying';
+        deathSound();
+        burst(px, py, colors.cyan, 24);
+        burst(px, py, colors.coral, 18);
+        shake = reduced ? 0 : 13;
+        flash = .4;
+        setTimeout(endGame, 420);
+      }
+
+      function endGame() {
+        state = 'over'; gameEl.classList.remove('playing');
+        Arcade.gameOver({
+          score: score,
+          title: String(score),
+          instruction: score === 0 ? 'A wall found you instantly. Tap the open side.' : (score < 15 ? 'Nice weave. The rain gets faster.' : 'Sharp reflexes. Hold the line longer?'),
+          restartLabel: 'Run it back'
+        });
+      }
+
+      function move(dir) {
+        if (state !== 'playing') return;
+        var n = Math.max(0, Math.min(2, lane + dir));
+        if (n === lane) return;
+        lane = n;
+        shiftSound();
+        if (!reduced) {
+          rings.push({ x: laneCenter(lane), y: py, r: 6, life: .7, color: colors.cyan });
+        }
+      }
+
+      canvas.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        Arcade.initAudio();
+        if (state !== 'playing') return;
+        move(e.clientX < W / 2 ? -1 : 1);
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+          if (state === 'playing') e.preventDefault();
+          if (e.repeat) return;
+          move(e.code === 'ArrowLeft' ? -1 : 1);
+        }
+      });
+
+      ARCADE.onStart = startGame;
+      ARCADE.onVisibility = function () { last = performance.now(); };
+
+      function update(dt) {
+        elapsed += dt;
+        var newPhase = 1 + Math.floor(elapsed / 15);
+        if (newPhase !== phase) {
+          phase = newPhase;
+          showToast('Speed up', colors.coral);
+          tone(520, .12, 'sine', .06, 0);
+          tone(392, .16, 'sine', .05, .09);
+        }
+
+        // lane slide
+        var prevF = laneF;
+        laneF += (lane - laneF) * Math.min(1, dt * 14);
+        if (Math.abs(lane - laneF) < .002) laneF = lane;
+        px = laneCenter(laneF);
+        tilt = Math.max(-.38, Math.min(.38, (laneF - prevF) / Math.max(dt, .0001) * .0011));
+
+        if (state === 'playing') {
+          // thruster
+          if (!reduced) {
+            particles.push({
+              x: px + rand(-4, 4), y: py + 13,
+              vx: rand(-14, 14), vy: rand(50, 105),
+              life: .5, size: rand(1.4, 3), color: colors.cyan, drag: 0
+            });
+          }
+
+          // spawn rows
+          spawnTimer -= dt;
+          if (spawnTimer <= 0) {
+            spawnRow(-BLOCK_H - 4);
+            spawnTimer = rowInterval() * rand(.85, 1.15);
+          }
+
+          // blocks
+          var v = speed();
+          for (var i = blocks.length - 1; i >= 0; i--) {
+            var b = blocks[i];
+            b.y += v * dt;
+            b.ph += dt * 3;
+            var bx = laneCenter(b.lane);
+            var bw = laneW - 14;
+            // circle vs rect hit test
+            var nx = Math.max(bx - bw / 2, Math.min(px, bx + bw / 2));
+            var ny = Math.max(b.y, Math.min(py, b.y + b.h));
+            var dx = px - nx, dy = py - ny;
+            if (dx * dx + dy * dy < SHIP_R * SHIP_R) { die(); return; }
+            if (!b.scored && b.y > py + SHIP_R) {
+              b.scored = true;
+              score += 1; setScore();
+              rings.push({ x: bx, y: b.y, r: 5, life: 1, color: b.lane === lane ? colors.coral : colors.cyan });
+              if (b.lane === lane) passSound();
+            }
+            if (b.y > H + 30) blocks.splice(i, 1);
+          }
+        }
+
+        // effects
+        for (var p = particles.length - 1; p >= 0; p--) {
+          var pt = particles[p];
+          pt.x += pt.vx * dt; pt.y += pt.vy * dt;
+          if (pt.drag) { pt.vx *= pt.drag; pt.vy *= pt.drag; }
+          pt.life -= dt * (pt.drag ? 2.6 : 1.9);
+          if (pt.life <= 0) particles.splice(p, 1);
+        }
+        for (var rg = rings.length - 1; rg >= 0; rg--) {
+          rings[rg].r += dt * 90; rings[rg].life -= dt * 2.2;
+          if (rings[rg].life <= 0) rings.splice(rg, 1);
+        }
+        flash = Math.max(0, flash - dt * 1.7);
+        shake = Math.max(0, shake - dt * 46);
+      }
+
+      function driftField(dt) {
+        for (var st = 0; st < stars.length; st++) {
+          stars[st].y += stars[st].spd * dt; stars[st].tw += dt * 2;
+          if (stars[st].y > H + 4) { stars[st].y = -4; stars[st].x = Math.random() * W; }
+        }
+        for (var nb = 0; nb < nebulas.length; nb++) {
+          var neb = nebulas[nb];
+          neb.x += neb.vx * dt; neb.y += neb.vy * dt; neb.ph += dt * .3;
+          if (neb.x < -neb.r) neb.x = W + neb.r; if (neb.x > W + neb.r) neb.x = -neb.r;
+          if (neb.y < -neb.r) neb.y = H + neb.r; if (neb.y > H + neb.r) neb.y = -neb.r;
+        }
+      }
+
+      function rr(x, y, w, h, r) {
+        ctx.beginPath();
+        if (ctx.roundRect) { ctx.roundRect(x, y, w, h, r); return; }
+        r = Math.min(r, w / 2, h / 2);
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function drawBackground() {
+        ctx.clearRect(0, 0, W, H);
+        ctx.save();
+        if (shake) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+
+        nebulas.forEach(function (neb) {
+          var wob = 1 + .06 * Math.sin(neb.ph);
+          var g = ctx.createRadialGradient(neb.x, neb.y, 0, neb.x, neb.y, neb.r * wob);
+          g.addColorStop(0, 'rgba(' + neb.c + ',.10)');
+          g.addColorStop(1, 'rgba(' + neb.c + ',0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(neb.x - neb.r, neb.y - neb.r, neb.r * 2, neb.r * 2);
+        });
+
+        stars.forEach(function (star) {
+          ctx.globalAlpha = .35 + .3 * Math.sin(star.tw);
+          ctx.fillStyle = colors.ink;
+          ctx.fillRect(star.x, star.y, star.s, star.s);
+        });
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+
+      function drawRails(t) {
+        ctx.save();
+        // outer rails
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = colors.cyan;
+        ctx.globalAlpha = .35;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = colors.cyan;
+        ctx.beginPath();
+        ctx.moveTo(pfX, 0); ctx.lineTo(pfX, H);
+        ctx.moveTo(pfX + pfW, 0); ctx.lineTo(pfX + pfW, H);
+        ctx.stroke();
+        // inner dashed dividers, slowly scrolling
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = .5;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 13]);
+        ctx.lineDashOffset = -t * .02;
+        ctx.beginPath();
+        ctx.moveTo(pfX + laneW, 0); ctx.lineTo(pfX + laneW, H);
+        ctx.moveTo(pfX + laneW * 2, 0); ctx.lineTo(pfX + laneW * 2, H);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+
+      function drawShip(t) {
+        var bob = state === 'playing' ? 0 : Math.sin(t * .003) * 3;
+        var sx = px, sy = py + bob;
+        // floor glow
+        ctx.save();
+        ctx.globalAlpha = .5;
+        var fg = ctx.createRadialGradient(sx, py + 30, 0, sx, py + 30, laneW * .45);
+        fg.addColorStop(0, 'rgba(1,205,254,.35)');
+        fg.addColorStop(1, 'rgba(1,205,254,0)');
+        ctx.fillStyle = fg;
+        ctx.beginPath(); ctx.arc(sx, py + 30, laneW * .45, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(tilt);
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = colors.cyan;
+        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = colors.cyan;
+        ctx.fillStyle = colors.cyan;
+        ctx.beginPath();
+        ctx.moveTo(0, -17);
+        ctx.lineTo(12, 13);
+        ctx.lineTo(0, 7);
+        ctx.lineTo(-12, 13);
+        ctx.closePath();
+        ctx.globalAlpha = .22;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(0, -3, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+
+      function drawGame(t) {
+        ctx.save();
+        if (shake) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+
+        drawRails(t);
+
+        // blocks
+        blocks.forEach(function (b) {
+          var cx = laneCenter(b.lane);
+          var w = laneW - 14;
+          var x = cx - w / 2;
+          var pulse = .82 + .18 * Math.sin(b.ph);
+          ctx.save();
+          ctx.shadowBlur = 16;
+          ctx.shadowColor = colors.coral;
+          rr(x, b.y, w, b.h, 7);
+          ctx.globalAlpha = .16 * pulse;
+          ctx.fillStyle = colors.coral;
+          ctx.fill();
+          ctx.globalAlpha = pulse;
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = colors.coral;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+          // inner highlight
+          ctx.globalAlpha = .35;
+          ctx.fillStyle = '#ffffff';
+          rr(x + 6, b.y + 5, w - 12, 3, 1.5);
+          ctx.fill();
+          ctx.restore();
+          ctx.globalAlpha = 1;
+        });
+
+        // trail behind the ship
+        for (var i = 0; i < trail.length; i++) {
+          var tp = trail[i];
+          var f = i / trail.length;
+          ctx.globalAlpha = f * .4;
+          ctx.fillStyle = colors.cyan;
+          ctx.beginPath();
+          ctx.arc(tp.x, tp.y, 2 + f * 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        trail.length = 0;
+
+        if (state !== 'over' && state !== 'dying') drawShip(t);
+
+        particles.forEach(function (p) {
+          ctx.globalAlpha = Math.max(0, p.life);
+          ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); ctx.fill();
+        });
+        rings.forEach(function (r) {
+          ctx.globalAlpha = Math.max(0, r.life);
+          ctx.strokeStyle = r.color; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        // vignette
+        var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .36, W / 2, H / 2, Math.max(W, H) * .72);
+        vg.addColorStop(0, 'rgba(0,0,0,0)');
+        vg.addColorStop(1, 'rgba(4,5,12,.5)');
+        ctx.fillStyle = vg;
+        ctx.fillRect(0, 0, W, H);
+        if (flash > 0) {
+          ctx.globalAlpha = flash * .22;
+          ctx.fillStyle = colors.coral;
+          ctx.fillRect(0, 0, W, H);
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      function loop(t) {
+        var dt = Math.min(.033, (t - last) / 1000 || 0); last = t;
+        if (state === 'playing' || state === 'dying') {
+          update(dt);
+          driftField(dt);
+          if (state === 'playing') trail.push({ x: px, y: py });
+          if (trail.length > 20) trail.shift();
+        } else {
+          driftField(dt * .4);
+          flash = Math.max(0, flash - dt * 1.7);
+          shake = Math.max(0, shake - dt * 46);
+        }
+        drawBackground();
+        drawGame(t);
+        requestAnimationFrame(loop);
+      }
+
+      resize();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>

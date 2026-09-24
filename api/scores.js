@@ -5,7 +5,7 @@
 
 const crypto = require('crypto');
 
-const GAMES = ['pulse', 'tower', 'breakout', 'lander', 'dodge'];
+const GAMES = ['pulse', 'tower', 'breakout', 'lander', 'dodge', 'lanes'];
 const FILENAME = 'arcade-leaderboard.json';
 const MAX_ENTRIES = 10;
 const USER_RE = /^[A-Z0-9_]{3,12}$/;
@@ -19,6 +19,7 @@ const HIST_EDGES = {
   breakout: [0, 10, 20, 30, 40, 50, 65, 80, 95, 110, 130, 160, 200, 260, Infinity],
   lander:   [0, 10, 20, 30, 40, 50, 65, 80, 100, 120, 150, 180, 230, 300, Infinity],
   dodge:    [0, 5, 10, 15, 20, 30, 40, 50, 60, 75, 90, 110, 140, 180, Infinity],
+  lanes:    [0, 5, 10, 15, 20, 28, 36, 46, 58, 72, 90, 115, 150, 200, Infinity],
 };
 function histBin(score, game) {
   const edges = HIST_EDGES[game] || HIST_EDGES.pulse;
