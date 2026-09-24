@@ -703,7 +703,7 @@
         if (typeof n === 'number') {
           var you = myPlays(gameKey);
           dist.hidden = true;
-          meta.innerHTML = 'No scores yet &middot; <b>' + fmt(n) + '</b>' + (you > 0 ? ' &middot; you <b>' + you + '</b>' : '');
+          meta.innerHTML = 'No scores yet &middot; <b>' + fmt(n) + '</b>&nbsp;plays' + (you > 0 ? ' &middot; you&nbsp;<b>' + you + '</b>' : '');
           el.hidden = false;
         }
         return;
@@ -719,9 +719,9 @@
       }
       var bits = [];
       if (best && best > 0) bits.push('best <b>' + best.toLocaleString('en-US') + '</b>');
-      if (typeof n === 'number') bits.push('<b>' + n.toLocaleString('en-US') + '</b> plays');
+      if (typeof n === 'number') bits.push('<b>' + n.toLocaleString('en-US') + '</b>&nbsp;plays');
       var you = myPlays(gameKey);
-      if (you > 0) bits.push('you <b>' + you + '</b>');
+      if (you > 0) bits.push('you&nbsp;<b>' + you + '</b>');
       meta.innerHTML = bits.join(' &middot; ');
       el.hidden = false;
     }
