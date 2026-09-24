@@ -9,7 +9,7 @@
 <style>
   html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#05070f;
     font-family:ui-monospace,Menlo,Monaco,Consolas,monospace;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-  #c{position:fixed;inset:0;display:block;touch-action:none;cursor:crosshair}
+  #c{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none;cursor:crosshair}
   .overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
     justify-content:center;text-align:center;background:rgba(5,7,15,.82);backdrop-filter:blur(4px);
     color:#e8f6ff;z-index:2;transition:opacity .25s}
@@ -96,8 +96,8 @@
     for(var i=0;i<3;i++)ps[i].className="pip"+(i<lives?" on":"");
   }
   function spawn(){
-    var sz=14+Math.random()*18;
-    meteors.push({x:10+Math.random()*(W-20-sz),y:-sz,r:sz,
+    var sz=11+Math.random()*12;
+    meteors.push({x:sz+6+Math.random()*(W-2*(sz+6)),y:-sz,r:sz,
       vy:speed0*(0.8+Math.random()*0.7),
       rot:Math.random()*6.28,vr:(Math.random()-.5)*0.12,
       pts:6+((Math.random()*4)|0),seed:Math.random()*999});
@@ -145,7 +145,7 @@
         if(m.y-m.r>=BASE_H){
           meteors.splice(i,1);lives--;flash=1;combo=0;syncHud();
           boom(m.x,BASE_H,m.r);
-          if(lives<=0)gameOver();
+          if(lives<=0){gameOver();break;}
         }
       }
     }
@@ -177,7 +177,7 @@
       x.fillStyle="#ffe9b0";rock(m,m.r*.22);
       x.restore();
       x.globalAlpha=.7;x.fillStyle="#ff6a3d";
-      x.beginPath();x.arc(m.x,b=Math.min(m.y+m.r+10,BASE_H),3+.6*Math.sin(t*0.3+m.seed),0,6.283);x.fill();
+      x.beginPath();x.arc(m.x,Math.min(m.y+m.r+10,BASE_H),3+.6*Math.sin(t*0.3+m.seed),0,6.283);x.fill();
     }
     x.globalAlpha=1;
     x.fillStyle="#123";x.fillRect(0,BASE_H-3,W,3);
@@ -239,6 +239,7 @@
 
   syncHud();
   bestEl.innerHTML="best "+best;
+  if(location.search.indexOf("dbg")>=0)window.__dbg=function(){return {meteors:meteors,score:score,state:state};};
   requestAnimationFrame(loop);
 })();
 </script>
