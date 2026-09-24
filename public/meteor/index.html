@@ -156,9 +156,9 @@
       }
       function rand(min, max) { return min + Math.random() * (max - min); }
       function fallSpeed() {
-        return Math.min(2.8, 1.9 + score / 600) * Math.min(1.5, 1 + elapsed / 300);
+        return Math.min(3.2, 2.2 + score / 400) * Math.min(2, 1 + elapsed / 120);
       }
-      function spawnInterval() { return Math.max(.45, 1.1 - score * .0018); }
+      function spawnInterval() { return Math.max(.35, .9 - score * .002); }
       function spawn() {
         var r = 11 + Math.random() * 12;
         meteors.push({
@@ -207,7 +207,7 @@
           var m = meteors[hit];
           meteors.splice(hit, 1);
           combo++;
-          score += combo;
+          score += 1 + Math.floor(combo / 5);
           ring(m.x, m.y, Math.max(44, m.r * 2.6), colors.cyan);
           burst(m.x, m.y, colors.cyan, 10);
           burst(m.x, m.y, colors.coral, 8);
@@ -321,7 +321,7 @@
         if (state === 'playing') {
           spawnT -= dt;
           if (spawnT <= 0) {
-            if (meteors.length < 10) spawn();
+            if (meteors.length < 12) spawn();
             spawnT = spawnInterval() * rand(.85, 1.15);
           }
           var f = fallSpeed();

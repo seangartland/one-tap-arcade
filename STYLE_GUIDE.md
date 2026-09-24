@@ -105,8 +105,10 @@ missing). Show the score big and centered; update it the moment it changes.
 - **Keep per-action increments small: 1-3 points.** Multipliers and combos
   compound faster than intuition says. Do the arithmetic on paper before
   shipping: meteor's original `10 * combo` gave 550 points for 10 straight
-  hits, which broke the scale. `1 * combo` (1+2+...+10 = 55) plays in the same
-  band as lanes and dodge.
+  hits, which broke the scale. Prefer flattening curves over triangular ones:
+  meteor now scores `1 + floor(combo / 5)` per hit (1pt each, +1 every 5th
+  consecutive hit), so a 30-hit streak pays ~111 instead of exploding. The
+  combo counter still shows the streak for feel; the points just don't run away.
 - **Resets keep combos honest.** A combo should reset on the mistakes that end
   streaks in that game (a miss, a hit taken, a block dropped). If long streaks
   are easy to sustain, the multiplier is the scoring system, and it will run
