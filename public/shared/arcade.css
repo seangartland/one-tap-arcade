@@ -469,7 +469,7 @@ h1 {
 .game-card:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 .game-card h2 { margin: 0; font-size: 30px; letter-spacing: -.045em; font-weight: 750; }
 .game-card .tag { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.spread { margin: 10px 0 0; }
+.spread { margin: 10px 0 0; min-height: 40px; /* reserve histogram space up front so cards never grow as each game's data lands */ }
 .dist { position: relative; height: 14px; }
 .dist-bars {
   position: absolute;
