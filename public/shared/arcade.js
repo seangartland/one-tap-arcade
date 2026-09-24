@@ -242,6 +242,23 @@
   var boardStats = null;
   var pendingScore = 0;
   var bestByGame = {};
+  var persistedBest = 0;
+  var runToken = 0;
+  function refreshBestLine() {
+    var best = Math.max(bestByGame[game] || 0, persistedBest, pendingScore);
+    if (sessionBestEl) sessionBestEl.textContent = 'Best \u00b7 ' + best;
+  }
+  function noteUserBest(scores, username) {
+    if (!scores || !username) return;
+    for (var i = 0; i < scores.length; i++) {
+      var s = scores[i];
+      if (s && s.name === username && Number.isInteger(s.score) && s.score > persistedBest) {
+        persistedBest = s.score;
+        refreshBestLine();
+        break;
+      }
+    }
+  }
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -314,14 +331,26 @@
       .catch(function () { showToast("Couldn't claim, offline?", colors.coral); })
       .then(function () { claimBtn.disabled = false; claimBtn.textContent = label; });
   });
-  function autoSaveScore() {
+  function autoSaveScore(attempt) {
+    attempt = attempt || 1;
     var u = getUser();
     if (!u) return;
+    var myRun = runToken;
     var finalScore = pendingScore;
+    function failed() {
+      if (myRun !== runToken) return;
+      if (attempt < 2) {
+        setTimeout(function () { if (myRun === runToken) autoSaveScore(2); }, 1500);
+      } else {
+        showToast("Couldn't save, offline?", colors.coral);
+      }
+    }
     saveUserScore(game, finalScore)
       .then(function (d) {
+        if (myRun !== runToken) return;
         if (d && d.ok) {
           var best = (d.best != null ? d.best : finalScore);
+          if (best > persistedBest) { persistedBest = best; refreshBestLine(); }
           var key = u.username + '|' + best;
           var cached = boardCache || fetchBoard();
           return cached.then(function (scores) {
@@ -335,7 +364,7 @@
             list = list.slice(0, 10);
             boardCache = Promise.resolve(list);
             renderBoard(list, key);
-            if (finalScore > previous) showToast('New best · saved', colors.cyan);
+            if (finalScore > previous) showToast('New best \u00b7 saved', colors.cyan);
           });
         }
         if (d && d.error === 'bad-token') {
@@ -345,9 +374,9 @@
           showToast('Name not recognized', colors.coral);
           return;
         }
-        showToast("Couldn't save, offline?", colors.coral);
+        failed();
       })
-      .catch(function () { showToast("Couldn't save, offline?", colors.coral); });
+      .catch(failed);
   }
   if (viewLeadersBtn) viewLeadersBtn.addEventListener('click', showLeaders);
   if (boardBackBtn) boardBackBtn.addEventListener('click', hideLeaders);
@@ -372,6 +401,7 @@
   }
   var statSent = false;
   function gameOver(o) {
+    runToken++;
     o = o || {};
     pendingScore = o.score || 0;
     /* Report the final score for distribution stats (includes 0s): fire-and-forget, once per run. */
@@ -390,22 +420,28 @@
         localStorage.setItem('arcade-myplays', JSON.stringify(mp));
       } catch (e) {}
     }
-    var best = Math.max(bestByGame[game] || 0, pendingScore);
-    bestByGame[game] = best;
+    bestByGame[game] = Math.max(bestByGame[game] || 0, pendingScore);
     if (titleEl) titleEl.textContent = (o.title != null ? o.title : '');
     if (instructionEl && o.instruction) instructionEl.textContent = o.instruction;
-    if (sessionBestEl) sessionBestEl.textContent = 'Session best · ' + best;
+    refreshBestLine();
     if (startBtn && o.restartLabel) startBtn.textContent = o.restartLabel;
     if (overlay) {
       overlay.classList.add('over'); overlay.classList.remove('hidden');
       overlay.classList.remove('entry-on', 'board-on', 'leaders-on');
     }
     if (boardList) boardList.innerHTML = '';
-    if (pendingScore > 0 && entryEl) {
+    if (entryEl) {
       var u = getUser();
       if (u) {
-        autoSaveScore();
-      } else {
+        if (pendingScore > 0) autoSaveScore();
+        else {
+          fetchBoard().then(function (scores) {
+            if (!scores) return;
+            noteUserBest(scores, u.username);
+            renderBoard(scores, null);
+          });
+        }
+      } else if (pendingScore > 0) {
         showClaimForm(true);
         if (overlay) overlay.classList.add('entry-on');
       }
@@ -441,8 +477,10 @@
     }
     host.hidden = true;
     el.hidden = true;
-    fetchBoard().then(function () {
+    fetchBoard().then(function (scores) {
       if (my !== pctToken) return;
+      var uu = getUser();
+      if (uu) noteUserBest(scores, uu.username);
       if (boardStats && boardStats.hist && histTotal(boardStats.hist) > 0) {
         var bars = host.querySelector('.run-dist-bars');
         var mark = host.querySelector('.run-dist-mark');
