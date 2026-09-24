@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231a1d29'/%3E%3Ccircle cx='10' cy='16' r='4' fill='%23e07856'/%3E%3Ccircle cx='22' cy='16' r='4' fill='%2345c8d8'/%3E%3C/svg%3E" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#05070f" />
+  <title>Arcade</title>
+  <link rel="stylesheet" href="/shared/arcade.css" />
+
+<style>
+#vlabel{position:fixed;top:0;left:0;right:0;z-index:99;background:#000;color:#9df2ff;
+font:600 13px/1.4 monospace;padding:10px 12px;border-bottom:1px solid #01cdfe}
+#vlabel a{color:#ffb300;margin:0 6px}
+body.hub{padding-top:64px}
+</style>
+<script>
+(function(){
+  var v = new URLSearchParams(location.search).get('v') || '0';
+  var css = {
+    '0': '',
+    '1': '.game-card,.game-card:hover{box-shadow:none!important}.go{box-shadow:none!important}.wrap h1,.gtotal,.kicker{text-shadow:none!important}.dist-best{box-shadow:none!important}',
+    '2': '.game-side{clip-path:none!important;background:rgba(1,205,254,.06)!important}',
+    '3': '.grain{display:none!important}body::before,body.hub::after{display:none!important}',
+    '4': '.game-card,.game-card:hover{box-shadow:none!important}.go{box-shadow:none!important}.wrap h1,.gtotal,.kicker{text-shadow:none!important}.dist-best{box-shadow:none!important}.game-side{clip-path:none!important;background:rgba(1,205,254,.06)!important}.grain{display:none!important}body::before,body.hub::after{display:none!important}'
+  }[v] || '';
+  var names = {'0':'control (current look)','1':'no glow shadows','2':'no diagonal clip on cards','3':'no grain/grid/glow background layers','4':'everything stripped'};
+  if (css) { var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st); }
+  document.addEventListener('DOMContentLoaded', function(){
+    var d = document.createElement('div'); d.id = 'vlabel';
+    d.innerHTML = 'TEST v' + v + ': ' + names[v] + '<br>' +
+      [0,1,2,3,4].map(function(i){ return '<a href="?v='+i+'">v'+i+'</a>'; }).join(' ');
+    document.body.appendChild(d);
+  });
+})();
+</script>
+</head>
+<body class="hub">
+  <main class="wrap">
+    <p class="kicker">One-tap games</p>
+    <h1>Arcade</h1>
+    <p class="sub">Tiny games. One global leaderboard.</p>
+    <div id="hubUser"></div>
+    <div class="toast" id="toast" aria-live="polite"></div>
+    <div class="cards">
+      <div class="game-card game-split" data-game="pulse">
+        <div class="game-info"><h2>Pulse</h2>
+        <p class="tag">A one-tap orbit game. Tap when the spark hits the arc.</p>
+        <div class="spread" id="spread-pulse" hidden>
+          <div class="dist" role="img" aria-label="Score distribution">
+            <div class="dist-bars"></div>
+            <i class="dist-best" hidden></i>
+          </div>
+          <p class="spread-meta"></p>
+        </div>
+        </div>
+        <div class="game-side">
+          <div class="game-shot"><svg viewBox="0 0 120 68" aria-hidden="true"><circle cx="60" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="4" opacity=".35"/><path d="M49 15 A22 22 0 0 1 71 15" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="82" cy="34" r="4" fill="currentColor"/></svg></div>
+          <a class="go" href="/pulse/">Play</a>
+        </div>
+      </div>
+      <div class="game-card game-split" data-game="tower">
+        <div class="game-info"><h2>Tower</h2>
+        <p class="tag">A one-tap stacking game. Drop the blocks, don't let them miss.</p>
+        <div class="spread" id="spread-tower" hidden>
+          <div class="dist" role="img" aria-label="Score distribution">
+            <div class="dist-bars"></div>
+            <i class="dist-best" hidden></i>
+          </div>
+          <p class="spread-meta"></p>
+        </div>
+        </div>
+        <div class="game-side">
+          <div class="game-shot"><svg viewBox="0 0 120 68" aria-hidden="true"><g fill="currentColor"><rect x="28" y="48" width="64" height="10" rx="2" opacity=".9"/><rect x="36" y="36" width="48" height="10" rx="2" opacity=".65"/><rect x="28" y="24" width="64" height="10" rx="2" opacity=".45"/><rect x="44" y="12" width="32" height="10" rx="2"/></g></svg></div>
+          <a class="go" href="/tower/">Play</a>
+        </div>
+      </div>
+      <div class="game-card game-split" data-game="lander">
+        <div class="game-info"><h2>Lander</h2>
+        <p class="tag">Hold to slow your fall. Touch down soft on the pad.</p>
+        <div class="spread" id="spread-lander" hidden>
+          <div class="dist" role="img" aria-label="Score distribution">
+            <div class="dist-bars"></div>
+            <i class="dist-best" hidden></i>
+          </div>
+          <p class="spread-meta"></p>
+        </div>
+        </div>
+        <div class="game-side">
+          <div class="game-shot"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M8 58 H44 L52 50 H68 L76 58 H112" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/><g fill="currentColor"><rect x="52" y="26" width="16" height="11" rx="3"/><circle cx="60" cy="21" r="4"/></g><path d="M54 37 L48 48 M66 37 L72 48" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg></div>
+          <a class="go" href="/lander/">Play</a>
+        </div>
+      </div>
+      <div class="game-card game-split" data-game="dodge">
+        <div class="game-info"><h2>Dodge</h2>
+        <p class="tag">Drag the comet. Don't touch the storm.</p>
+        <div class="spread" id="spread-dodge" hidden>
+          <div class="dist" role="img" aria-label="Score distribution">
+            <div class="dist-bars"></div>
+            <i class="dist-best" hidden></i>
+          </div>
+          <p class="spread-meta"></p>
+        </div>
+        </div>
+        <div class="game-side">
+          <div class="game-shot"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M18 52 L46 36" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".5" fill="none"/><circle cx="54" cy="32" r="7" fill="currentColor"/><circle cx="88" cy="16" r="3" fill="currentColor" opacity=".4"/><circle cx="96" cy="48" r="3" fill="currentColor" opacity=".4"/><circle cx="30" cy="14" r="3" fill="currentColor" opacity=".4"/></svg></div>
+          <a class="go" href="/dodge/">Play</a>
+        </div>
+      </div>
+      <div class="game-card game-split" data-game="lanes">
+        <div class="game-info"><h2>Lanes</h2>
+        <p class="tag">Weave a ship through falling rain across three lanes.</p>
+        <div class="spread" id="spread-lanes" hidden>
+          <div class="dist" role="img" aria-label="Score distribution">
+            <div class="dist-bars"></div>
+            <i class="dist-best" hidden></i>
+          </div>
+          <p class="spread-meta"></p>
+        </div>
+        </div>
+        <div class="game-side">
+          <div class="game-shot"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M42 6 V62 M78 6 V62" stroke="currentColor" stroke-width="2" opacity=".3"/><rect x="10" y="12" width="26" height="9" rx="2" fill="currentColor" opacity=".55"/><rect x="84" y="30" width="26" height="9" rx="2" fill="currentColor" opacity=".55"/><rect x="47" y="16" width="26" height="9" rx="2" fill="currentColor" opacity=".3"/><path d="M60 44 L70 60 H50 Z" fill="currentColor"/></svg></div>
+          <a class="go" href="/lanes/">Play</a>
+        </div>
+      </div>
+    </div>
+    <section class="global">
+      <h2>Global leaders</h2>
+      <p class="gmeta">Sum of your best score in each game</p>
+      <ol id="globalList"></ol>
+    </section>
+    <p class="foot">Top scores sync across every player</p>
+  </main>
+  <div class="grain" aria-hidden="true"></div>
+  <script src="/shared/arcade.js"></script>
+</body>
+</html>
