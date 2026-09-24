@@ -483,6 +483,22 @@ h1 {
   background: #ffb300;
   box-shadow: 0 0 8px rgba(255,179,0,.8);
 }
+.dist-vals {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 11px;
+  pointer-events: none;
+}
+.dist-val {
+  position: absolute;
+  bottom: 0;
+  font: 500 9px "DM Mono", monospace;
+  color: var(--muted);
+  text-shadow: 0 1px 3px #05070f, 0 0 6px rgba(5,7,15,.9);
+  white-space: nowrap;
+}
 .spread-meta {
   margin: 6px 0 0;
   font: 500 11px/1.6 "DM Mono", monospace;
@@ -502,6 +518,33 @@ h1 {
   color: var(--muted);
 }
 .run-pct b { color: var(--lime); font-weight: 700; }
+.overlay .run-dist {
+  position: relative;
+  height: 30px;
+  margin: 12px 0 0;
+}
+.overlay .run-dist-bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+.overlay .run-dist-bars .dist-bar {
+  flex: 1 1 0;
+  min-width: 2px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, rgba(1,205,254,.95), rgba(1,205,254,.35));
+}
+.overlay .run-dist-mark {
+  position: absolute;
+  top: -2px; bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: #ffb300;
+  box-shadow: 0 0 8px rgba(255,179,0,.8);
+}
 .game-card .go {
   display: block;
   margin-top: 0;
