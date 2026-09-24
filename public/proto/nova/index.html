@@ -11,6 +11,7 @@ canvas{position:fixed;inset:0;display:block;touch-action:none}
 #hud{position:fixed;top:max(16px,env(safe-area-inset-top));left:max(16px,env(safe-area-inset-left));font-family:ui-monospace,Menlo,Consolas,monospace;z-index:5;pointer-events:none}
 #hud .score{font-size:36px;font-weight:700;color:#b6fff2;text-shadow:0 0 14px rgba(0,255,216,.55),0 0 44px rgba(0,255,216,.25)}
 #hud .chain{font-size:12px;color:#ffb366;text-shadow:0 0 10px rgba(255,179,0,.5);margin-top:2px;letter-spacing:1px}
+#hud .quota{font-size:12px;color:#9bf8ff;text-shadow:0 0 10px rgba(0,255,216,.5);margin-top:2px;letter-spacing:1px}
 #rst{position:fixed;top:max(16px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));z-index:6;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:2px;color:#ff9df5;background:rgba(255,61,240,.1);border:1px solid rgba(255,61,240,.5);border-radius:8px;padding:9px 13px;touch-action:manipulation;box-shadow:0 0 14px rgba(255,61,240,.25);cursor:pointer}
 #ov{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:ui-monospace,Menlo,Consolas,monospace;background:radial-gradient(ellipse at center,rgba(5,7,15,.15) 0%,rgba(5,7,15,.9) 100%)}
 #ov.hide{display:none}
@@ -22,18 +23,21 @@ canvas{position:fixed;inset:0;display:block;touch-action:none}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="hud"><div class="score" id="score">0</div><div class="chain" id="chain">chain 0</div></div>
+<div id="hud"><div class="score" id="score">0</div><div class="chain" id="chain">chain 0</div><div class="quota" id="quota"></div></div>
 <button id="rst">RESTART</button>
 <div id="ov">
-<h1>NOVA</h1>
-<div class="how">Tap anywhere to detonate an expanding ring. Every orb the ring touches detonates too, chaining on.</div>
-<div class="go">TAP TO START</div>
+<h1 id="ovTitle">NOVA</h1>
+<div class="how" id="ovHow">Tap anywhere to detonate an expanding ring. Chain at least the quota each round. Miss 3 rounds and it is over.</div>
+<div class="go" id="ovGo">TAP TO START</div>
 </div>
 <script>
 'use strict';
 const cv=document.getElementById('c'),cx=cv.getContext('2d');
 const scoreEl=document.getElementById('score'),chainEl=document.getElementById('chain');
+const quoEl=document.getElementById('quota');
 const ov=document.getElementById('ov'),rst=document.getElementById('rst');
+const ovTitle=document.getElementById('ovTitle'),ovHow=document.getElementById('ovHow'),ovGo=document.getElementById('ovGo');
+const INTRO='Tap anywhere to detonate an expanding ring. Chain at least the quota each round. Miss 3 rounds and it is over.';
 const TWO=Math.PI*2;
 const rand=(a,b)=>a+Math.random()*(b-a);
 const rnd=v=>v+(Math.random()*2-1);
@@ -48,7 +52,8 @@ function resize(){
   for(const o of orbs){o.x=Math.min(Math.max(o.x,o.r),W-o.r);o.y=Math.min(Math.max(o.y,o.r),H-o.r);}
 }
 addEventListener('resize',resize);
-let total=0,lastChain=0,orbCount=4,roundHit=0,roundOn=false,running=false,trans=0;
+let total=0,lastChain=0,orbCount=6,roundHit=0,roundOn=false,running=false,trans=0;
+let quota=0,lives=3,best=+(localStorage.getItem('nova.best')||0),over=false;
 function spawnOrbs(n){
   orbs=[];
   for(let i=0;i<n;i++){
@@ -56,19 +61,37 @@ function spawnOrbs(n){
     orbs.push({x:rand(W*.15,W*.85),y:rand(H*.15,H*.85),r,
       vx:rnd(rand(22,60)),vy:rnd(rand(22,60)),dead:0,fade:1});
   }
+  quota=Math.max(2,Math.floor(n/3));
 }
-function ring(x,y,d){rings.push({x,y,r:0,d,max:MAX(),sp:rand(260,340)});}
+function ring(x,y,d){rings.push({x,y,r:0,d,max:130,sp:rand(260,340)});}
 function spark(x,y,r){sparks.push({x,y,r,a:1});}
 function detonate(x,y){roundOn=true;ring(x,y,0);spark(x,y,30);}
 function start(e){
   const t=e.touches?e.touches[0]:e;
+  if(over){
+    total=0;lastChain=0;orbCount=6;lives=3;roundHit=0;roundOn=false;trans=0;
+    rings=[];sparks=[];over=false;
+    ovTitle.textContent='NOVA';
+    ovHow.textContent=INTRO;
+    ovGo.textContent='TAP TO START';
+  }
   ov.classList.add('hide');running=true;trans=0;
   spawnOrbs(orbCount);
   detonate(t.clientX,t.clientY);
 }
+function gameOver(){
+  running=false;
+  best=Math.max(best,total);
+  localStorage.setItem('nova.best',best);
+  ovTitle.textContent='GAME OVER';
+  ovHow.textContent='score '+total+' · best '+best;
+  ovGo.textContent='TAP TO RETRY';
+  ov.classList.remove('hide');
+  over=true;
+}
 function restart(){
-  total=0;lastChain=0;orbCount=4;roundHit=0;roundOn=false;trans=0;
-  rings=[];sparks=[];
+  total=0;lastChain=0;orbCount=6;lives=3;roundHit=0;roundOn=false;trans=0;
+  rings=[];sparks=[];over=false;
   spawnOrbs(orbCount);
 }
 function updOrbs(dt){
@@ -155,7 +178,12 @@ function frame(t){
   const dt=Math.min((t-last)/1000,.05);last=t;
   if(trans>0){trans-=dt;if(trans<=0){trans=0;spawnOrbs(orbCount);roundHit=0;}}
   else if(running&&roundOn&&!rings.length){
-    total+=roundHit;lastChain=roundHit;roundHit=0;orbCount+=2;roundOn=false;trans=.75;
+    total+=roundHit;lastChain=roundHit;roundHit=0;roundOn=false;
+    if(roundHit>=quota){orbCount+=2;trans=.75;}
+    else{
+      lives--;
+      if(lives<=0)gameOver();else trans=.75;
+    }
   }
   updOrbs(dt);
   updRings(dt);
@@ -163,6 +191,7 @@ function frame(t){
   draw();
   scoreEl.textContent=total;
   chainEl.textContent='chain '+lastChain;
+  quoEl.textContent='need '+quota+' lives '+'●'.repeat(lives)+'○'.repeat(Math.max(0,3-lives));
   requestAnimationFrame(frame);
 }
 cv.addEventListener('touchstart',e=>{e.preventDefault();tap(e);},{passive:false});
