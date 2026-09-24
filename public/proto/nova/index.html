@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>NOVA</title>
+<style>
+html,body{margin:0;height:100%;background:#05070f;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body{position:fixed;inset:0}
+canvas{position:fixed;inset:0;display:block;touch-action:none}
+#hud{position:fixed;top:max(16px,env(safe-area-inset-top));left:max(16px,env(safe-area-inset-left));font-family:ui-monospace,Menlo,Consolas,monospace;z-index:5;pointer-events:none}
+#hud .score{font-size:36px;font-weight:700;color:#b6fff2;text-shadow:0 0 14px rgba(0,255,216,.55),0 0 44px rgba(0,255,216,.25)}
+#hud .chain{font-size:12px;color:#ffb366;text-shadow:0 0 10px rgba(255,179,0,.5);margin-top:2px;letter-spacing:1px}
+#rst{position:fixed;top:max(16px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));z-index:6;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:2px;color:#ff9df5;background:rgba(255,61,240,.1);border:1px solid rgba(255,61,240,.5);border-radius:8px;padding:9px 13px;touch-action:manipulation;box-shadow:0 0 14px rgba(255,61,240,.25);cursor:pointer}
+#ov{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:ui-monospace,Menlo,Consolas,monospace;background:radial-gradient(ellipse at center,rgba(5,7,15,.15) 0%,rgba(5,7,15,.9) 100%)}
+#ov.hide{display:none}
+#ov h1{font-size:min(74px,16vw);margin:0;letter-spacing:16px;padding-left:16px;color:#d8fff8;text-shadow:0 0 20px rgba(0,255,229,.85),0 0 70px rgba(0,255,229,.45)}
+#ov .how{margin:18px 26px 0;font-size:14px;line-height:1.7;color:#9bf8ff;text-shadow:0 0 8px rgba(0,255,216,.35);max-width:340px}
+#ov .go{margin-top:36px;font-size:11px;letter-spacing:4px;color:#ffd9f9;text-shadow:0 0 12px rgba(255,61,240,.9);animation:pu 1.5s infinite}
+@keyframes pu{0%,100%{opacity:.3}55%{opacity:1}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><div class="score" id="score">0</div><div class="chain" id="chain">chain 0</div></div>
+<button id="rst">RESTART</button>
+<div id="ov">
+<h1>NOVA</h1>
+<div class="how">Tap anywhere to detonate an expanding ring. Every orb the ring touches detonates too, chaining on.</div>
+<div class="go">TAP TO START</div>
+</div>
+<script>
+'use strict';
+const cv=document.getElementById('c'),cx=cv.getContext('2d');
+const scoreEl=document.getElementById('score'),chainEl=document.getElementById('chain');
+const ov=document.getElementById('ov'),rst=document.getElementById('rst');
+const TWO=Math.PI*2;
+const rand=(a,b)=>a+Math.random()*(b-a);
+const rnd=v=>v+(Math.random()*2-1);
+let W=0,H=0,orbs=[],rings=[],sparks=[];
+const MAX=()=>Math.hypot(W,H);
+function resize(){
+  const d=Math.min(window.devicePixelRatio||1,2);
+  W=innerWidth;H=innerHeight;
+  cv.width=W*d;cv.height=H*d;
+  cv.style.width=W+'px';cv.style.height=H+'px';
+  cx.setTransform(d,0,0,d,0,0);
+  for(const o of orbs){o.x=Math.min(Math.max(o.x,o.r),W-o.r);o.y=Math.min(Math.max(o.y,o.r),H-o.r);}
+}
+addEventListener('resize',resize);
+let total=0,lastChain=0,orbCount=4,roundHit=0,roundOn=false,running=false,trans=0;
+function spawnOrbs(n){
+  orbs=[];
+  for(let i=0;i<n;i++){
+    const r=rand(6,11);
+    orbs.push({x:rand(W*.15,W*.85),y:rand(H*.15,H*.85),r,
+      vx:rnd(rand(22,60)),vy:rnd(rand(22,60)),dead:0,fade:1});
+  }
+}
+function ring(x,y,d){rings.push({x,y,r:0,d,max:MAX(),sp:rand(260,340)});}
+function spark(x,y,r){sparks.push({x,y,r,a:1});}
+function detonate(x,y){roundOn=true;ring(x,y,0);spark(x,y,30);}
+function start(e){
+  const t=e.touches?e.touches[0]:e;
+  ov.classList.add('hide');running=true;trans=0;
+  spawnOrbs(orbCount);
+  detonate(t.clientX,t.clientY);
+}
+function restart(){
+  total=0;lastChain=0;orbCount=4;roundHit=0;roundOn=false;trans=0;
+  rings=[];sparks=[];
+  spawnOrbs(orbCount);
+}
+function updOrbs(dt){
+  for(const o of orbs){
+    if(o.dead){o.fade-=dt*3;continue;}
+    o.x+=o.vx*dt;o.y+=o.vy*dt;
+    if(o.x<o.r){o.x=o.r;o.vx=Math.abs(o.vx);}
+    if(o.x>W-o.r){o.x=W-o.r;o.vx=-Math.abs(o.vx);}
+    if(o.y<o.r){o.y=o.r;o.vy=Math.abs(o.vy);}
+    if(o.y>H-o.r){o.y=H-o.r;o.vy=-Math.abs(o.vy);}
+  }
+  orbs=orbs.filter(o=>o.fade>0);
+}
+function updRings(dt){
+  for(const r of rings){
+    r.r+=r.sp*dt;
+    if(r.r>=r.max)continue;
+    for(const o of orbs){
+      if(o.dead)continue;
+      const dx=o.x-r.x,dy=o.y-r.y,rr=r.r+o.r;
+      if(dx*dx+dy*dy<=rr*rr){
+        o.dead=1;roundHit++;ring(o.x,o.y,r.d+1);spark(o.x,o.y,o.r*4);
+      }
+    }
+  }
+  rings=rings.filter(r=>r.r<r.max);
+}
+function updSparks(dt){
+  for(const s of sparks){s.r+=330*dt;s.a-=dt*3;}
+  sparks=sparks.filter(s=>s.a>0);
+}
+function drawOrb(o){
+  if(o.fade<=0)return;
+  cx.globalAlpha=o.fade;
+  const g=cx.createRadialGradient(o.x,o.y,0,o.x,o.y,o.r*3.2);
+  g.addColorStop(0,'rgba(0,255,216,.4)');
+  g.addColorStop(.4,'rgba(0,255,216,.12)');
+  g.addColorStop(1,'rgba(0,255,216,0)');
+  cx.fillStyle=g;cx.beginPath();cx.arc(o.x,o.y,o.r*3.2,0,TWO);cx.fill();
+  cx.fillStyle='#00ffd8';cx.beginPath();cx.arc(o.x,o.y,o.r,0,TWO);cx.fill();
+  cx.fillStyle='rgba(255,255,255,.85)';
+  cx.beginPath();cx.arc(o.x-o.r*.3,o.y-o.r*.3,o.r*.32,0,TWO);cx.fill();
+  cx.globalAlpha=1;
+}
+function drawRing(r){
+  if(r.a<=0)return;
+  const p=r.r/r.max;
+  r.a=p>.82?Math.max(0,1-(p-.82)/.18):1;
+  const c=r.d%2?'#ff3df0':'#ffb300';
+  cx.globalAlpha=r.a*.22;
+  cx.strokeStyle=c;cx.lineWidth=16;
+  cx.beginPath();cx.arc(r.x,r.y,r.r,0,TWO);cx.stroke();
+  cx.globalAlpha=r.a;
+  cx.lineWidth=2.5;
+  cx.beginPath();cx.arc(r.x,r.y,r.r,0,TWO);cx.stroke();
+  cx.globalAlpha=r.a*.5;
+  cx.fillStyle=c;cx.beginPath();cx.arc(r.x,r.y,2.2,0,TWO);cx.fill();
+  cx.globalAlpha=1;
+}
+function drawSpark(s){
+  if(s.a<=0)return;
+  cx.globalAlpha=s.a;
+  cx.strokeStyle='#ffffff';cx.lineWidth=2;
+  cx.beginPath();cx.arc(s.x,s.y,s.r,0,TWO);cx.stroke();
+  cx.globalAlpha=1;
+}
+function draw(){
+  cx.fillStyle='#05070f';cx.fillRect(0,0,W,H);
+  const g=cx.createRadialGradient(W/2,H/2,0,W/2,H/2,MAX()/2);
+  g.addColorStop(0,'rgba(0,60,80,.18)');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  for(const o of orbs)drawOrb(o);
+  for(const r of rings)drawRing(r);
+  for(const s of sparks)drawSpark(s);
+}
+function tap(e){
+  if(!running||trans>0)return;
+  const t=e.touches?e.touches[0]:e;
+  detonate(t.clientX,t.clientY);
+}
+let last=performance.now();
+function frame(t){
+  const dt=Math.min((t-last)/1000,.05);last=t;
+  if(trans>0){trans-=dt;if(trans<=0){trans=0;spawnOrbs(orbCount);roundHit=0;}}
+  else if(running&&roundOn&&!rings.length){
+    total+=roundHit;lastChain=roundHit;roundHit=0;orbCount+=2;roundOn=false;trans=.75;
+  }
+  updOrbs(dt);
+  updRings(dt);
+  updSparks(dt);
+  draw();
+  scoreEl.textContent=total;
+  chainEl.textContent='chain '+lastChain;
+  requestAnimationFrame(frame);
+}
+cv.addEventListener('touchstart',e=>{e.preventDefault();tap(e);},{passive:false});
+cv.addEventListener('mousedown',e=>{e.preventDefault();tap(e);});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+ov.addEventListener('touchstart',e=>{e.preventDefault();start(e);},{passive:false});
+ov.addEventListener('mousedown',e=>{e.preventDefault();start(e);});
+rst.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();restart();},{passive:false});
+rst.addEventListener('mousedown',e=>{e.preventDefault();e.stopPropagation();restart();});
+resize();
+spawnOrbs(orbCount);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
