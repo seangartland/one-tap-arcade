@@ -643,48 +643,10 @@
       return 0;
     }
     function renderDistVals(dist, hist, best, edges) {
-      var vals = dist.querySelector('.dist-vals');
-      if (!vals) {
-        vals = document.createElement('div');
-        vals.className = 'dist-vals';
-        dist.appendChild(vals);
-      }
-      vals.innerHTML = '';
       var v25 = histPctile(hist, .25, edges);
       var v50 = histPctile(hist, .5, edges);
       var v75 = histPctile(hist, .75, edges);
       var vMax = histMax(hist, edges);
-      var xMax = Math.max(vMax, best && best > 0 ? best : 0);
-      var W = dist.clientWidth || 160;
-      var placed = [];
-      function add(v, isMax) {
-        if (v == null) return;
-        var text = v.toLocaleString('en-US');
-        var w = text.length * 6 + 10;
-        var x = scorePos(v, xMax, edges) * 100;
-        var cx = x / 100 * W;
-        var lo, hi;
-        if (isMax) { lo = cx - w; hi = cx; }
-        else { lo = cx - w / 2; hi = cx + w / 2; }
-        if (lo < 0) { hi += -lo; lo = 0; }
-        if (hi > W) { lo -= hi - W; hi = W; }
-        for (var k = 0; k < placed.length; k++) {
-          if (lo < placed[k][1] + 2 && placed[k][0] < hi + 2) return;
-        }
-        var span = document.createElement('span');
-        span.className = 'dist-val';
-        span.textContent = text;
-        span.style.left = lo + 'px';
-        span.style.transform = 'none';
-        vals.appendChild(span);
-        placed.push([lo, hi]);
-      }
-      if (vMax > 0) {
-        add(vMax, true);
-        if (v50 > 0) add(v50, false);
-        if (v75 > 0) add(v75, false);
-        if (v25 > 0) add(v25, false);
-      }
       dist.setAttribute('aria-label', 'Score distribution: 25th ' + v25.toLocaleString('en-US') + ', median ' + v50.toLocaleString('en-US') + ', 75th ' + v75.toLocaleString('en-US') + ', max ' + vMax.toLocaleString('en-US'));
     }
     function paint(gameKey) {
@@ -703,7 +665,7 @@
         if (typeof n === 'number') {
           var you = myPlays(gameKey);
           dist.hidden = true;
-          meta.innerHTML = 'No scores yet &middot; ' + fmtPlays(n) + (you > 0 ? ' &middot; you&nbsp;<b>' + you + '</b>' : '');
+          meta.innerHTML = fmtPlays(n) + (you > 0 ? ' &middot; you&nbsp;<b>' + you + '</b>' : '');
           el.hidden = false;
         }
         return;

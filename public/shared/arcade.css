@@ -456,7 +456,7 @@ h1 {
 .game-card h2 { margin: 0; font-size: 30px; letter-spacing: -.045em; font-weight: 750; }
 .game-card .tag { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
 .spread { margin: 10px 0 0; }
-.dist { position: relative; height: 20px; }
+.dist { position: relative; height: 14px; }
 .dist-bars {
   position: absolute;
   inset: 0;
@@ -479,30 +479,15 @@ h1 {
   background: #ffb300;
   box-shadow: 0 0 8px rgba(255,179,0,.8);
 }
-.dist-vals {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 11px;
-  pointer-events: none;
-}
-.dist-val {
-  position: absolute;
-  bottom: 0;
-  font: 500 10px "DM Mono", monospace;
-  color: #d7dee9;
-  background: rgba(5,7,15,.78);
-  padding: 1px 4px;
-  border-radius: 3px;
-  white-space: nowrap;
-}
 .spread-meta {
   margin: 6px 0 0;
   font: 500 11px/1.6 "DM Mono", monospace;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .spread-meta b { color: var(--ink); font-weight: 700; }
 .run-pct {
