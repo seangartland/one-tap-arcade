@@ -125,10 +125,9 @@
 
   function spawnWall() {
     var T = Math.max(1.1, 2.4 - elapsed * .04);
-    var gapW = Math.max(.55, 1.2 - elapsed * .02);
     var spd = (edge - orb) / T;
     magE = !magE;
-    walls.push({ r: edge, gc: Math.random() * TAU, gapW: gapW, spin: (Math.random() < .5 ? -1 : 1) * rand(.18, .6), spd: spd, passed: false, col: magE ? mag : cyan });
+    walls.push({ r: edge, rot: Math.random() * TAU, gap: (Math.random() * 6) | 0, gapLen: 1, spin: (Math.random() < .5 ? -1 : 1) * rand(.18, .6), spd: spd, passed: false, col: magE ? mag : cyan });
   }
 
   function die() {
@@ -196,13 +195,17 @@
       nextSpawn -= dt;
       if (nextSpawn <= 0) { spawnWall(); nextSpawn = Math.max(.7, 1.85 - elapsed * .035) * rand(.8, 1.2); }
       for (var i = walls.length - 1; i >= 0; i--) {
-        var w = walls[i], prev = w.r;
-        w.r -= w.spd * dt; w.gc += w.spin * dt;
-        if (!w.passed && prev >= orb && w.r <= orb) {
+        var w = walls[i], prevAp = w.r * Math.cos(Math.PI / 6);
+        w.r -= w.spd * dt; w.rot += w.spin * dt;
+        var ap = w.r * Math.cos(Math.PI / 6);
+        if (!w.passed && prevAp >= orb && ap <= orb) {
           w.passed = true;
-          if (Math.abs(angDiff(pa, w.gc)) > w.gapW / 2) { die(); return; }
+          var playerSide = Math.floor(norm(pa - w.rot) / (TAU / 6)) % 6;
+          var g0 = w.gap, g1 = (w.gap + w.gapLen) % 6;
+          var inGap = g0 < g1 ? (playerSide >= g0 && playerSide < g1) : (playerSide >= g0 || playerSide < g1);
+          if (!inGap) { die(); return; }
         }
-        if (w.r < -80) walls.splice(i, 1);
+        if (ap < -40) walls.splice(i, 1);
       }
     }
     for (var p = parts.length - 1; p >= 0; p--) {
@@ -252,18 +255,23 @@
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(cx, cy, orb, 0, TAU); ctx.stroke();
 
+    ctx.lineCap = 'round';
     for (var j = 0; j < walls.length; j++) {
       var w = walls[j];
-      var a0 = w.gc + w.gapW / 2 + .02, a1 = w.gc - w.gapW / 2 - .02;
       var ri = Math.max(w.r, 0);
-      ctx.beginPath();
-      ctx.arc(cx, cy, edge, a0, a1, false);
-      ctx.arc(cx, cy, ri, a1, a0, true);
-      ctx.closePath();
-      ctx.fillStyle = w.col; ctx.globalAlpha = .1; ctx.fill(); ctx.globalAlpha = 1;
-      ctx.strokeStyle = w.col; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(cx, cy, ri, a0, a1, false); ctx.stroke();
+      for (var s = 0; s < 6; s++) {
+        if (s >= w.gap && s < w.gap + w.gapLen) continue;
+        var a0 = w.rot + s * TAU / 6, a1 = w.rot + (s + 1) * TAU / 6;
+        var x0 = cx + Math.cos(a0) * ri, y0 = cy + Math.sin(a0) * ri;
+        var x1 = cx + Math.cos(a1) * ri, y1 = cy + Math.sin(a1) * ri;
+        ctx.strokeStyle = w.col;
+        ctx.globalAlpha = .14; ctx.lineWidth = 22;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        ctx.globalAlpha = 1; ctx.lineWidth = 11;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      }
     }
+    ctx.globalAlpha = 1;
 
     if (state === 'playing' || state === 'dying') {
       for (var k = 0; k < trail.length; k++) {
@@ -273,18 +281,18 @@
         ctx.beginPath(); ctx.arc(cx + Math.cos(tt.a) * orb, cy + Math.sin(tt.a) * orb, 1 + f * 4, 0, TAU); ctx.fill();
       }
       ctx.globalAlpha = 1;
-      var tx = cx + Math.cos(pa) * (orb + 12), ty = cy + Math.sin(pa) * (orb + 12);
+      var tx = cx + Math.cos(pa) * (orb + 8), ty = cy + Math.sin(pa) * (orb + 8);
       ctx.beginPath();
       ctx.moveTo(tx, ty);
-      ctx.lineTo(cx + Math.cos(pa + Math.PI - .55) * (orb - 8), cy + Math.sin(pa + Math.PI - .55) * (orb - 8));
-      ctx.lineTo(cx + Math.cos(pa + Math.PI + .55) * (orb - 8), cy + Math.sin(pa + Math.PI + .55) * (orb - 8));
+      ctx.lineTo(cx + Math.cos(pa - .30) * (orb - 6), cy + Math.sin(pa - .30) * (orb - 6));
+      ctx.lineTo(cx + Math.cos(pa + .30) * (orb - 6), cy + Math.sin(pa + .30) * (orb - 6));
       ctx.closePath();
       ctx.save();
       ctx.shadowColor = cyan; ctx.shadowBlur = 16;
       ctx.fillStyle = ink; ctx.fill();
       ctx.restore();
       ctx.fillStyle = cyan;
-      ctx.beginPath(); ctx.arc(tx, ty, 2.2, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(tx, ty, 2, 0, TAU); ctx.fill();
     }
 
     for (var m = 0; m < parts.length; m++) {
