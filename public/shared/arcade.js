@@ -284,7 +284,7 @@
         var key = s.name + '|' + s.score;
         var me = highlightKey && !done && key === highlightKey;
         if (me) done = true;
-        html += '<li' + (me ? ' class="me"' : '') + '><span>' + (i + 1) + '. ' + esc(s.name) + '</span><span>' + esc(s.score) + '</span></li>';
+        html += '<li' + (me ? ' class="me"' : '') + '><span class="grank">' + (i + 1) + '</span><span class="gname">' + esc(s.name) + '</span><span class="gtotal">' + esc(s.score) + '</span></li>';
       });
     } else {
       html = '<li class="empty"><span>No scores yet. Be the first.</span></li>';

@@ -334,9 +334,8 @@ h1 {
   font: 400 13px/2 DM Mono, monospace;
   color: var(--muted);
 }
-#boardList li { display: flex; justify-content: space-between; gap: 12px; }
-#boardList li.me { color: var(--coral); }
-#boardList li.empty { justify-content: center; }
+#boardList li.me { border-color: var(--coral); }
+#boardList li.me .gname { color: var(--coral); }
 .linklike {
   background: transparent;
   border: 0;
@@ -631,7 +630,8 @@ body.hub .toast { position: fixed; z-index: 6; }
   font: 400 14px/2 DM Mono, monospace;
   color: var(--muted);
 }
-#globalList li {
+#globalList li,
+#boardList li {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -642,9 +642,12 @@ body.hub .toast { position: fixed; z-index: 6; }
   border: 1px solid var(--line);
   border-radius: 12px;
 }
-#globalList li.empty { justify-content: center; }
-#globalList .grank { color: var(--muted); font: 500 12px/1 DM Mono, monospace; }
-#globalList .gname {
+#globalList li.empty,
+#boardList li.empty { justify-content: center; }
+#globalList .grank,
+#boardList .grank { color: var(--muted); font: 500 12px/1 DM Mono, monospace; }
+#globalList .gname,
+#boardList .gname {
   flex: 1;
   min-width: 0;
   color: var(--ink);
@@ -653,7 +656,8 @@ body.hub .toast { position: fixed; z-index: 6; }
   white-space: nowrap;
   text-align: left;
 }
-#globalList .gtotal {
+#globalList .gtotal,
+#boardList .gtotal {
   color: var(--lime);
   font: 700 15px/1 DM Mono, monospace;
   text-shadow: 0 0 12px rgba(255,179,0,.5);
