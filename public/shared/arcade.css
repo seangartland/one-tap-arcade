@@ -432,18 +432,37 @@ h1 {
 .game-card:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 .game-card h2 { margin: 0; font-size: 30px; letter-spacing: -.045em; font-weight: 750; }
 .game-card .tag { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.game-card .best {
-  margin: 18px 0 0;
-  font: 500 12px/1.6 DM Mono, monospace;
-  letter-spacing: .06em;
-  color: var(--cyan);
+.spread { margin: 18px 0 0; }
+.spread-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(157,242,255,.12);
 }
-.game-card .plays {
-  margin: 6px 0 0;
-  font: 500 12px/1.6 DM Mono, monospace;
+.spread-band {
+  position: absolute;
+  top: 0; bottom: 0;
+  border-radius: 99px;
+  background: linear-gradient(90deg, rgba(1,205,254,.35), rgba(1,205,254,.95));
+  box-shadow: 0 0 10px rgba(1,205,254,.45);
+}
+.spread-mid {
+  position: absolute;
+  top: -3px; bottom: -3px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--lime);
+  box-shadow: 0 0 8px rgba(255,179,0,.7);
+}
+.spread-meta {
+  margin: 9px 0 0;
+  font: 500 11px/1.6 "DM Mono", monospace;
   letter-spacing: .06em;
+  text-transform: uppercase;
   color: var(--muted);
 }
+.spread-meta b { color: var(--ink); font-weight: 700; }
 .game-card .go {
   display: block;
   margin-top: 20px;

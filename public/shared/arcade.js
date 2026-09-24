@@ -284,19 +284,49 @@
     var plays = {};
     var done = 0;
     function fmt(n) { return n.toLocaleString('en-US') + (n === 1 ? ' play' : ' plays'); }
-    function showBest(el, top) {
-      if (top && top.name) {
-        el.textContent = 'Best · ' + top.name + ' — ' + top.score;
-      } else {
-        el.style.display = 'none';
-      }
+    function pct(sorted, p) {
+      var i = (sorted.length - 1) * p;
+      var lo = Math.floor(i), hi = Math.ceil(i);
+      return Math.round(sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo));
     }
-    function showPlays(el, n) {
-      if (typeof n === 'number') {
-        el.textContent = fmt(n);
-      } else {
-        el.style.display = 'none';
+    function summarize(scores) {
+      var vals = (scores || []).map(function (s) { return s.score; })
+        .filter(function (v) { return typeof v === 'number' && isFinite(v); })
+        .sort(function (a, b) { return a - b; });
+      if (!vals.length) return null;
+      return { q1: pct(vals, .25), med: pct(vals, .5), q3: pct(vals, .75), top: vals[vals.length - 1] };
+    }
+    function renderSpread(gameKey, sum, n) {
+      var el = document.getElementById('spread-' + gameKey);
+      if (!el) { finishOne(); return; }
+      var bar = el.querySelector('.spread-bar');
+      var meta = el.querySelector('.spread-meta');
+      if (typeof n === 'number') plays[gameKey] = n;
+      if (!sum) {
+        if (typeof n === 'number') {
+          bar.style.display = 'none';
+          meta.innerHTML = 'No scores yet &middot; <b>' + fmt(n) + '</b>';
+          el.hidden = false;
+        }
+        finishOne(); return;
       }
+      if (sum.top > 0) {
+        var band = el.querySelector('.spread-band');
+        var mid = el.querySelector('.spread-mid');
+        band.style.left = (sum.q1 / sum.top * 100) + '%';
+        band.style.width = (Math.max(sum.q3 - sum.q1, sum.top * 0.02) / sum.top * 100) + '%';
+        mid.style.left = (sum.med / sum.top * 100) + '%';
+        bar.style.display = '';
+        bar.setAttribute('aria-label', 'Typical scores ' + sum.q1 + ' to ' + sum.q3 + ', top ' + sum.top);
+      } else {
+        bar.style.display = 'none';
+      }
+      var bits = ['typical <b>' + sum.q1 + '&ndash;' + sum.q3 + '</b>',
+                  'top <b>' + sum.top.toLocaleString('en-US') + '</b>'];
+      if (typeof n === 'number') bits.push('<b>' + fmt(n) + '</b>');
+      meta.innerHTML = bits.join(' &middot; ');
+      el.hidden = false;
+      finishOne();
     }
     function sortCards() {
       var wrap = document.querySelector('.cards');
@@ -311,29 +341,21 @@
       done++;
       if (done === games.length) sortCards();
     }
-    function apply(gameKey, bestEl, playsEl, top, n) {
-      if (bestEl) showBest(bestEl, top);
-      if (playsEl) showPlays(playsEl, n);
-      if (typeof n === 'number') plays[gameKey] = n;
-      finishOne();
-    }
     function loadGame(gameKey) {
-      var bestEl = document.getElementById('best-' + gameKey);
-      var playsEl = document.getElementById('plays-' + gameKey);
-      var cacheKey = 'arcade-best-' + gameKey;
+      var cacheKey = 'arcade-spread-' + gameKey;
       try {
         var cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-        if (cached && Date.now() - cached.t < 300000) { apply(gameKey, bestEl, playsEl, cached.top, cached.plays); return; }
+        if (cached && Date.now() - cached.t < 300000) { renderSpread(gameKey, cached.sum, cached.plays); return; }
       } catch (e) {}
       fetch('/api/scores?game=' + gameKey)
         .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
         .then(function (d) {
-          var top = d && d.scores && d.scores[0];
+          var sum = summarize(d && d.scores);
           var n = d && typeof d.plays === 'number' ? d.plays : null;
-          apply(gameKey, bestEl, playsEl, top, n);
-          try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), top: top || null, plays: n })); } catch (e) {}
+          renderSpread(gameKey, sum, n);
+          try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), sum: sum, plays: n })); } catch (e) {}
         })
-        .catch(function () { apply(gameKey, bestEl, playsEl, null, null); });
+        .catch(function () { renderSpread(gameKey, null, null); });
     }
     for (var i = 0; i < games.length; i++) loadGame(games[i]);
   }
