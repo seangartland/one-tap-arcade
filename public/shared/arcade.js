@@ -544,7 +544,7 @@
 
   /* ---------- hub mode ---------- */
   function initHub() {
-    var games = ['pulse', 'tower', 'lander', 'dodge', 'lanes'];
+    var games = ['pulse', 'tower', 'lander', 'dodge', 'lanes', 'meteor'];
     var toastEl = document.getElementById('toast');
     function hubToast(text, color) {
       if (!toastEl) return;

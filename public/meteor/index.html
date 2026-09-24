@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2305070f'/%3E%3Cpath d='M4 18 L12 18 M3 21 L9 21 M6 15 L10 15' stroke='%23ffb347' stroke-width='2' stroke-linecap='round' opacity='.7'/%3E%3Ccircle cx='21' cy='17' r='6' fill='%23ff8a3d'/%3E%3C/svg%3E" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#05070f" />
+  <title>Meteor - blast the falling rocks</title>
+  <link rel="stylesheet" href="/shared/arcade.css" />
+  <style>
+    canvas { touch-action: none; }
+    .hud-center { flex-direction: column; align-items: center; gap: 8px; }
+    .combo { color: var(--muted); font: 500 13px/1 DM Mono, monospace; letter-spacing: .05em; }
+    .combo.hot { color: var(--coral); }
+    .pips { position: absolute; top: max(24px, env(safe-area-inset-top)); right: max(24px, env(safe-area-inset-right)); display: flex; gap: 7px; z-index: 3; pointer-events: none; }
+    .pip { width: 16px; height: 16px; border-radius: 50%; background: transparent; border: 2px solid #8a52d6; box-shadow: inset 0 0 6px rgba(138,82,214,.6); }
+    .pip.on { background: #ff7ad9; border-color: #ff7ad9; box-shadow: 0 0 12px #ff7ad9; }
+  </style>
+</head>
+<body class="game">
+  <main class="game" id="game">
+    <canvas id="canvas" tabindex="0" aria-label="Meteor. Tap falling meteors to blast them before they reach the base. Three lives, then the run is over."></canvas>
+    <div class="hud hud-center" aria-live="polite">
+      <div class="score-wrap">
+        <span class="score" id="score">0</span>
+      </div>
+      <div class="combo" id="combo">combo x1</div>
+    </div>
+    <div class="pips" id="pips" aria-label="3 lives remaining">
+      <span class="pip on"></span><span class="pip on"></span><span class="pip on"></span>
+    </div>
+    <div class="toast" id="toast" aria-live="polite"></div>
+    <div class="hint">Tap the falling rocks · Don't let them land</div>
+
+    <section class="overlay" id="overlay" aria-modal="true" role="dialog" aria-labelledby="title">
+      <div class="card">
+        <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M12 42 L58 36" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".5"/><path d="M6 50 L44 46" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".3"/><path d="M18 34 L40 32" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".3"/><circle cx="68" cy="36" r="13" fill="currentColor"/></svg></div>
+        <div class="result-label">Run complete</div>
+        <h1 id="title">Meteor.</h1>
+        <p class="instruction" id="instruction">Tap the falling rocks.</p>
+        <p class="session-best" id="sessionBest">Session best · 0</p>
+        <p class="run-pct" id="runPct" hidden></p>
+        <div id="entry">
+          <div id="claimWrap">
+            <label for="username">Claim your username</label>
+            <div class="entry-row">
+              <input id="username" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Your username" />
+              <button id="claimBtn" class="claim" type="button">Claim</button>
+            </div>
+          </div>
+          <button class="linklike" id="skipSave" type="button">Skip</button>
+        </div>
+        <div id="board" aria-live="polite">
+          <h2>Meteor · Global leaders</h2>
+          <ol id="boardList"></ol>
+          <button class="linklike" id="boardBack" type="button">Back</button>
+        </div>
+        <button class="primary" id="start">Start blasting</button>
+        <div class="card-foot"><button class="linklike" id="viewLeaders" type="button">Leaderboard</button></div>
+      </div>
+    </section>
+
+    <button class="sound" id="sound" type="button" aria-label="Mute sound" aria-pressed="true">
+      <svg class="on" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="M17 9.2c.7.7 1 1.6 1 2.8s-.3 2.1-1 2.8M19.5 6.8c1.4 1.4 2.1 3.1 2.1 5.2s-.7 3.8-2.1 5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <svg class="off" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="m17.5 9 4 4m0-4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+    <a class="home" href="../">Arcade</a>
+    <div class="grain" aria-hidden="true"></div>
+  </main>
+
+  <script>
+    window.ARCADE = {
+      game: 'meteor',
+      tagline: 'Tap the falling rocks.',
+      startLabel: 'Start blasting',
+      restartLabel: 'Run it back',
+      resultLabel: 'Run complete',
+      boardHeading: 'Meteor · Global leaders'
+    };
+  </script>
+  <script src="/shared/arcade.js"></script>
+
+  <script>
+    (function () {
+      'use strict';
+      var canvas = document.getElementById('canvas');
+      var ctx = canvas.getContext('2d');
+      var gameEl = Arcade.gameEl;
+      var scoreEl = document.getElementById('score');
+      var comboEl = document.getElementById('combo');
+      var pipsEl = document.getElementById('pips');
+      var tone = Arcade.tone;
+      var showToast = Arcade.showToast;
+      var colors = Arcade.colors;
+
+      var state = 'ready';
+      var W = 0, H = 0, dpr = 1;
+      var BASE_H = 0;
+      var score = 0, lives = 3, combo = 0;
+      var elapsed = 0;
+      var meteors = [];
+      var particles = [];
+      var rings = [];
+      var stars = [];
+      var flash = 0;
+      var shake = 0;
+      var spawnT = 0;
+      var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var schemeMQ = { matches: true, addEventListener: function () {} };
+      var PHASES = [
+        { name: 'Daybreak',
+          light: { cyan: '#087f8c', coral: '#e95d45', lime: '#bbda45' },
+          dark:  { cyan: '#4bc7cf', coral: '#ff765f', lime: '#cde85a' } },
+        { name: 'Dusk',
+          light: { cyan: '#5a4fcf', coral: '#e8933c', lime: '#2fa37c' },
+          dark:  { cyan: '#9a8ff5', coral: '#f2b25c', lime: '#57d6a0' } },
+        { name: 'Ember',
+          light: { cyan: '#9a3412', coral: '#dc2626', lime: '#d97706' },
+          dark:  { cyan: '#fb923c', coral: '#f87171', lime: '#fbbf24' } },
+        { name: 'Tide',
+          light: { cyan: '#0e7490', coral: '#2563eb', lime: '#0d9e6f' },
+          dark:  { cyan: '#22d3ee', coral: '#60a5fa', lime: '#34d399' } },
+        { name: 'Noir',
+          light: { cyan: '#52525b', coral: '#db2777', lime: '#a3a3a3' },
+          dark:  { cyan: '#a1a1aa', coral: '#f472b6', lime: '#d4d4d8' } }
+      ];
+      var phase = 1;
+      function applyPhase(n, silent) {
+        phase = n;
+        var trio = schemeMQ.matches ? PHASES[n - 1].dark : PHASES[n - 1].light;
+        var root = document.documentElement.style;
+        root.setProperty('--cyan', trio.cyan);
+        root.setProperty('--coral', trio.coral);
+        root.setProperty('--lime', trio.lime);
+        Arcade.refreshColors();
+        if (n > 1 && !silent) showToast(PHASES[n - 1].name, colors.cyan);
+      }
+      function checkPhase() {
+        var n = Math.min(5, 1 + Math.floor(elapsed / 15));
+        if (n !== phase) {
+          applyPhase(n);
+          tone(520, .12, 'sine', .06, 0);
+          tone(392, .16, 'sine', .05, .09);
+        }
+      }
+      schemeMQ.addEventListener('change', function () { applyPhase(phase, true); });
+      var last = 0;
+      var pips = Array.prototype.slice.call(pipsEl.children);
+
+      function rgbOf(hex) {
+        var s = String(hex || '').replace('#', '');
+        if (s.length === 3) s = s[0] + s[0] + s[1] + s[1] + s[2] + s[2];
+        var n = parseInt(s, 16);
+        return (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255);
+      }
+      function rand(min, max) { return min + Math.random() * (max - min); }
+      function fallSpeed() {
+        return Math.min(2.4, 1.4 + score / 600) * Math.min(1.5, 1 + elapsed / 300);
+      }
+      function spawnInterval() { return Math.max(.5, 1.6 - score * .0018); }
+      function spawn() {
+        var r = 11 + Math.random() * 12;
+        meteors.push({
+          x: r + 6 + Math.random() * (W - 2 * (r + 6)),
+          y: -r,
+          r: r,
+          vy: 0.8 + Math.random() * 0.7,
+          rot: Math.random() * Math.PI * 2,
+          vr: (Math.random() - .5) * 1.6,
+          seed: Math.random() * 999
+        });
+      }
+      function syncHud() {
+        scoreEl.textContent = String(score);
+        var hot = combo >= 2;
+        comboEl.textContent = hot ? 'combo x' + combo : 'combo x1';
+        comboEl.classList.toggle('hot', hot);
+        for (var i = 0; i < pips.length; i++) pips[i].classList.toggle('on', i < lives);
+      }
+      function ring(x, y, max, color) {
+        rings.push({ x: x, y: y, r: 6, max: max, life: 1, color: color });
+      }
+      function burst(x, y, color, count) {
+        if (reduced) count = Math.min(count, 4);
+        for (var i = 0; i < count; i++) {
+          var a = Math.random() * Math.PI * 2;
+          var v = rand(60, 220);
+          particles.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, size: rand(2, 5), color: color });
+        }
+      }
+      function zapSound() {
+        var up = Math.min(240, combo * 40);
+        tone(660 + up, .07, 'sine', .06, 0);
+        tone(500 + up, .09, 'sine', .05, .045);
+      }
+      function blastAt(x, y) {
+        var hit = -1, hd = 1e9;
+        for (var i = 0; i < meteors.length; i++) {
+          var m = meteors[i];
+          var dx = x - m.x, dy = y - m.y;
+          var d2 = dx * dx + dy * dy;
+          var reach = m.r + 22;
+          if (d2 < reach * reach && d2 < hd) { hd = d2; hit = i; }
+        }
+        if (hit >= 0) {
+          var m = meteors[hit];
+          meteors.splice(hit, 1);
+          combo++;
+          score += 10 * combo;
+          ring(m.x, m.y, Math.max(44, m.r * 2.6), colors.cyan);
+          burst(m.x, m.y, colors.cyan, 10);
+          burst(m.x, m.y, colors.coral, 8);
+          flash = 1;
+          zapSound();
+          syncHud();
+        } else if (state === 'playing') {
+          combo = 0;
+          ring(x, y, 56, colors.coral);
+          tone(130, .08, 'sine', .05, 0);
+          syncHud();
+        }
+      }
+      function baseHit(m) {
+        var i = meteors.indexOf(m);
+        if (i >= 0) meteors.splice(i, 1);
+        lives--;
+        combo = 0;
+        flash = 1;
+        shake = reduced ? 0 : 12;
+        ring(m.x, BASE_H, Math.max(50, m.r * 2.8), colors.cyan);
+        burst(m.x, BASE_H, colors.coral, 12);
+        burst(m.x, BASE_H, colors.cyan, 9);
+        tone(90, .32, 'sine', .2, 0);
+        tone(55, .5, 'triangle', .16, .02);
+        syncHud();
+        if (lives <= 0) {
+          state = 'dying';
+          ring(m.x, BASE_H, 240, colors.cyan);
+          burst(m.x, BASE_H, colors.coral, 26);
+          burst(m.x, BASE_H, colors.cyan, 20);
+          flash = 1.4;
+          shake = reduced ? 0 : 22;
+          tone(440, .13, 'sine', .07, 0);
+          tone(330, .13, 'sine', .06, .11);
+          tone(220, .2, 'sine', .06, .22);
+          setTimeout(endGame, 600);
+        }
+      }
+      function startGame() {
+        Arcade.startFlow();
+        state = 'playing';
+        score = 0; lives = 3; combo = 0; elapsed = 0;
+        meteors = []; particles = []; rings = [];
+        flash = 0; shake = 0; spawnT = 0;
+        applyPhase(1, true);
+        syncHud();
+        gameEl.classList.add('playing');
+        tone(440, .09, 'sine', .07, 0);
+        tone(660, .13, 'sine', .06, .065);
+        canvas.focus({ preventScroll: true });
+      }
+      function endGame() {
+        state = 'over';
+        gameEl.classList.remove('playing');
+        Arcade.gameOver({
+          score: score,
+          title: String(score),
+          instruction: score === 0 ? 'A rock hit the base. Tap them sooner.' : 'Sharp shots. The rocks only fall faster.',
+          restartLabel: 'Run it back'
+        });
+      }
+      function onTap(x, y) {
+        Arcade.initAudio();
+        if (state !== 'playing') return;
+        blastAt(x, y);
+      }
+      canvas.addEventListener('pointerdown', function (e) {
+        if (e.pointerType === 'touch') return;
+        e.preventDefault();
+        onTap(e.clientX, e.clientY);
+      });
+      canvas.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        var t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+        if (!t) return;
+        onTap(t.clientX, t.clientY);
+      }, { passive: false });
+
+      ARCADE.onStart = startGame;
+      ARCADE.onVisibility = function () { last = performance.now(); };
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = window.innerWidth; H = window.innerHeight;
+        canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        BASE_H = H - 46;
+        initStars();
+      }
+      window.addEventListener('resize', resize, { passive: true });
+
+      function initStars() {
+        stars = [];
+        var n = Math.round(Math.min(120, W * H / 12000));
+        for (var i = 0; i < n; i++) {
+          stars.push({ x: Math.random() * W, y: Math.random() * H, s: rand(.6, 1.8), spd: rand(8, 30), tw: Math.random() * Math.PI * 2 });
+        }
+      }
+      function driftStars(dt) {
+        for (var i = 0; i < stars.length; i++) {
+          var st = stars[i];
+          st.y += st.spd * dt; st.tw += dt * 2;
+          if (st.y > H + 4) { st.y = -4; st.x = Math.random() * W; }
+        }
+      }
+      function update(dt) {
+        elapsed += dt;
+        checkPhase();
+        if (state === 'playing') {
+          spawnT -= dt;
+          if (spawnT <= 0) {
+            if (meteors.length < 10) spawn();
+            spawnT = spawnInterval() * rand(.85, 1.15);
+          }
+          var f = fallSpeed();
+          for (var i = meteors.length - 1; i >= 0; i--) {
+            var m = meteors[i];
+            m.y += m.vy * f * 60 * dt;
+            m.rot += m.vr * dt;
+            if (m.y + m.r >= BASE_H) baseHit(m);
+          }
+        }
+      }
+      function updateFX(dt) {
+        for (var p = particles.length - 1; p >= 0; p--) {
+          var pt = particles[p];
+          pt.x += pt.vx * dt; pt.y += pt.vy * dt;
+          pt.life -= dt * 2.6;
+          if (pt.life <= 0) particles.splice(p, 1);
+        }
+        for (var rg = rings.length - 1; rg >= 0; rg--) {
+          rings[rg].r += dt * 300; rings[rg].life -= dt * 1.8;
+          if (rings[rg].life <= 0) rings.splice(rg, 1);
+        }
+        flash = Math.max(0, flash - dt * 1.7);
+        shake = Math.max(0, shake - dt * 46);
+      }
+
+      function rockPath(m, r) {
+        ctx.beginPath();
+        var n = 12;
+        for (var i = 0; i <= n; i++) {
+          var a = (i / n) * Math.PI * 2;
+          var rr = r * (0.7 + 0.3 * Math.abs(Math.sin(a * 3 + m.seed)));
+          var px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+      }
+      function drawMeteor(m) {
+        ctx.save();
+        ctx.translate(m.x, m.y);
+        ctx.rotate(m.rot);
+        ctx.globalAlpha = .3;
+        ctx.fillStyle = colors.coral;
+        ctx.beginPath(); ctx.arc(0, 0, m.r * 1.9, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#e08b3a';
+        rockPath(m, m.r); ctx.fill();
+        ctx.fillStyle = '#b06028';
+        rockPath(m, m.r * .68); ctx.fill();
+        ctx.fillStyle = '#ffd9a8';
+        rockPath(m, m.r * .3); ctx.fill();
+        ctx.restore();
+        if (m.y + m.r + 10 < BASE_H - 2) {
+          ctx.globalAlpha = .75;
+          ctx.fillStyle = colors.coral;
+          ctx.beginPath(); ctx.arc(m.x, m.y + m.r + 10, 3 + .5 * Math.sin(performance.now() * .003 + m.seed), 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      }
+      function drawBase() {
+        var c = rgbOf(colors.cyan);
+        ctx.save();
+        ctx.strokeStyle = colors.cyan;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = colors.cyan;
+        ctx.shadowBlur = 14;
+        ctx.beginPath(); ctx.moveTo(0, BASE_H); ctx.lineTo(W, BASE_H); ctx.stroke();
+        ctx.shadowBlur = 0;
+        var g = ctx.createLinearGradient(0, BASE_H, 0, Math.min(H, BASE_H + H * .14));
+        g.addColorStop(0, 'rgba(' + c + ',.12)');
+        g.addColorStop(1, 'rgba(' + c + ',0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, BASE_H, W, H - BASE_H);
+        ctx.restore();
+      }
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        ctx.save();
+        if (shake) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+
+        stars.forEach(function (st) {
+          ctx.globalAlpha = .3 + .3 * Math.sin(st.tw);
+          ctx.fillStyle = colors.ink;
+          ctx.fillRect(st.x, st.y, st.s, st.s);
+        });
+        ctx.globalAlpha = 1;
+
+        meteors.forEach(drawMeteor);
+        drawBase();
+
+        rings.forEach(function (r) {
+          ctx.globalAlpha = Math.max(0, r.life);
+          ctx.strokeStyle = r.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+        });
+        particles.forEach(function (p) {
+          ctx.globalAlpha = Math.max(0, p.life);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+        });
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        if (flash > 0) {
+          ctx.globalAlpha = Math.min(.5, flash * .35);
+          ctx.fillStyle = colors.coral;
+          ctx.fillRect(0, 0, W, H);
+          ctx.globalAlpha = 1;
+        }
+      }
+      function loop(t) {
+        var dt = Math.min(.033, (t - last) / 1000 || 0); last = t;
+        if (state === 'playing' || state === 'dying') {
+          update(dt);
+          driftStars(dt);
+        } else {
+          driftStars(dt * .4);
+        }
+        updateFX(dt);
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      resize();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
