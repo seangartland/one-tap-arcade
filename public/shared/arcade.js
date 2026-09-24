@@ -81,14 +81,16 @@
     return (i + f) / HIST_EDGES.length;
   }
   /* Bar spans for a histogram: height % of the peak bucket, empty buckets
-     get a small 10% stub so the row never vanishes. */
+     draw nothing (height 0%) so the distribution is not overstated, while
+     tiny nonzero buckets keep a 10% floor so they stay visible. */
   function distBarsHTML(hist) {
     var peak = 0;
     for (var i = 0; i < hist.length; i++) if (hist[i] > peak) peak = hist[i];
     if (!peak) peak = 1;
     var html = '';
     for (var j = 0; j < hist.length; j++) {
-      html += '<span class="dist-bar" style="height:' + Math.max(10, Math.round(hist[j] / peak * 100)) + '%"></span>';
+      var pct = hist[j] > 0 ? Math.max(10, Math.round(hist[j] / peak * 100)) : 0;
+      html += '<span class="dist-bar" style="height:' + pct + '%"></span>';
     }
     return html;
   }
@@ -601,26 +603,29 @@
       var v75 = histPctile(hist, .75);
       var vMax = histMax(hist);
       var xMax = Math.max(vMax, best && best > 0 ? best : 0);
+      var W = dist.clientWidth || 160;
       var placed = [];
       function add(v, isMax) {
         if (v == null) return;
+        var text = v.toLocaleString('en-US');
+        var w = text.length * 6 + 10;
         var x = scorePos(v, xMax) * 100;
-        if (isMax) {
-          if (x > 100) x = 100;
-        } else {
-          if (x < 6) x = 6;
-          else if (x > 94) x = 94;
-        }
+        var cx = x / 100 * W;
+        var lo, hi;
+        if (isMax) { lo = cx - w; hi = cx; }
+        else { lo = cx - w / 2; hi = cx + w / 2; }
+        if (lo < 0) { hi += -lo; lo = 0; }
+        if (hi > W) { lo -= hi - W; hi = W; }
         for (var k = 0; k < placed.length; k++) {
-          if (Math.abs(x - placed[k]) < 8) return;
+          if (lo < placed[k][1] + 2 && placed[k][0] < hi + 2) return;
         }
         var span = document.createElement('span');
         span.className = 'dist-val';
-        span.textContent = v.toLocaleString('en-US');
-        span.style.left = x + '%';
-        span.style.transform = isMax ? 'translateX(-100%)' : 'translateX(-50%)';
+        span.textContent = text;
+        span.style.left = lo + 'px';
+        span.style.transform = 'none';
         vals.appendChild(span);
-        placed.push(x);
+        placed.push([lo, hi]);
       }
       if (vMax > 0) {
         add(vMax, true);
