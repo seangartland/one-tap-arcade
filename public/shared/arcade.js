@@ -118,14 +118,28 @@
   function clearUser() {
     try { localStorage.removeItem(USER_KEY); } catch (e) {}
   }
+  /* The gist backend is last-wins on the whole file, so overlapping
+     read-modify-write cycles silently drop data (e.g. the game-over stat POST
+     racing the next game's play POST when the player restarts fast, or the
+     stat POST racing the save POST). Serialize all writes per client so each
+     one reads the result of the previous. */
+  var writeChain = Promise.resolve();
   function postApi(body) {
-    return fetch('/api/scores', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    }).then(function (r) {
-      return r.json().catch(function () { return {}; });
+    var p = writeChain.then(function () {
+      var fetchP = fetch('/api/scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; });
+      });
+      var timeoutP = new Promise(function (_, reject) {
+        setTimeout(function () { reject(new Error('timeout')); }, 10000);
+      });
+      return Promise.race([fetchP, timeoutP]);
     });
+    writeChain = p.catch(function () {});
+    return p;
   }
   function claimUser(username) {
     return postApi({ action: 'claim', username: username }).then(function (d) {
@@ -391,13 +405,7 @@
     initAudio();
     if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('over'); }
     /* Count the run: fire-and-forget, never blocks game start. */
-    try {
-      fetch('/api/scores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ game: game, play: true })
-      }).catch(function () {});
-    } catch (e) {}
+    postApi({ game: game, play: true }).catch(function () {});
   }
   var statSent = false;
   function gameOver(o) {
@@ -407,13 +415,7 @@
     /* Report the final score for distribution stats (includes 0s): fire-and-forget, once per run. */
     if (!statSent) {
       statSent = true;
-      try {
-        fetch('/api/scores', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ game: game, stat: true, score: pendingScore })
-        }).catch(function () {});
-      } catch (e) {}
+      postApi({ game: game, stat: true, score: pendingScore }).catch(function () {});
       try {
         var mp = JSON.parse(localStorage.getItem('arcade-myplays') || '{}');
         mp[game] = (Number(mp[game]) || 0) + 1;
