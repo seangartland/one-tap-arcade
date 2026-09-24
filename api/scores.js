@@ -11,15 +11,22 @@ const MAX_ENTRIES = 10;
 const USER_RE = /^[A-Z0-9_]{3,12}$/;
 
 /* Score histogram: counts every completed run's final score (including 0s,
-   which never reach the named leaderboard). Bucket i covers scores
-   (HIST_EDGES[i-1], HIST_EDGES[i]], with bucket 0 = {0} exactly. */
-const HIST_EDGES = [0, 1, 2, 4, 9, 19, 29, 49, 74, 99, 149, 249, 499, 999, Infinity];
-function histBin(score) {
-  for (let i = 0; i < HIST_EDGES.length; i++) if (score <= HIST_EDGES[i]) return i;
-  return HIST_EDGES.length - 1;
+   which never reach the named leaderboard). Edges are per-game; bucket i
+   covers scores (EDGES[i-1], EDGES[i]], with bucket 0 = {0} exactly. */
+const HIST_EDGES = {
+  pulse:    [0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, Infinity],
+  tower:    [0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 90, 110, 140, Infinity],
+  breakout: [0, 10, 20, 30, 40, 50, 65, 80, 95, 110, 130, 160, 200, 260, Infinity],
+  lander:   [0, 10, 20, 30, 40, 50, 65, 80, 100, 120, 150, 180, 230, 300, Infinity],
+  dodge:    [0, 5, 10, 15, 20, 30, 40, 50, 60, 75, 90, 110, 140, 180, Infinity],
+};
+function histBin(score, game) {
+  const edges = HIST_EDGES[game] || HIST_EDGES.pulse;
+  for (let i = 0; i < edges.length; i++) if (score <= edges[i]) return i;
+  return edges.length - 1;
 }
 function normHist(v) {
-  const n = HIST_EDGES.length;
+  const n = HIST_EDGES.pulse.length;
   if (Array.isArray(v) && v.length === n && v.every((x) => Number.isInteger(x) && x >= 0)) return v.slice();
   return new Array(n).fill(0);
 }
@@ -153,7 +160,7 @@ module.exports = async function handler(req, res) {
       if (!GAMES.includes(game)) return json(res, 400, { error: 'invalid' });
       const board = await readBoard();
       const g = board[game];
-      const payload = JSON.stringify({ scores: cleanEntries(g.scores), plays: g.plays, hist: normHist(g.hist), runs: g.runs });
+      const payload = JSON.stringify({ scores: cleanEntries(g.scores), plays: g.plays, hist: normHist(g.hist), runs: g.runs, edges: HIST_EDGES[game] });
       res.writeHead(200, {
         'Content-Type': 'application/json',
         'Cache-Control': 's-maxage=15, stale-while-revalidate=60',
@@ -196,7 +203,7 @@ module.exports = async function handler(req, res) {
         }
         const g = board[game];
         g.hist = normHist(g.hist);
-        g.hist[histBin(stScore)] += 1;
+        g.hist[histBin(stScore, game)] += 1;
         g.runs = (Number(g.runs) || 0) + 1;
         await writeBoard(board);
         return json(res, 200, { ok: true });

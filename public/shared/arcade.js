@@ -27,17 +27,20 @@
 
   /* ---------- score-distribution helpers ---------- */
   /* Buckets are right-open: bucket 0 is exactly {0}, bucket i covers
-     (HIST_EDGES[i-1], HIST_EDGES[i]]. The last (Infinity) bucket has no
-     upper bound, so it is capped at 1000 for scaling and sampling. */
+     (EDGES[i-1], EDGES[i]]. The last (Infinity) bucket has no upper
+     bound, so it is capped at 1000 for scaling and sampling. HIST_EDGES
+     below is only a fallback; the live per-game edges come from the API
+     response (boardStats.edges / the hub's stored game edges). */
   var HIST_EDGES = [0, 1, 2, 4, 9, 19, 29, 49, 74, 99, 149, 249, 499, 999, Infinity];
   function histTotal(hist) {
     var t = 0;
     for (var i = 0; i < hist.length; i++) t += hist[i];
     return t;
   }
-  function histMax(hist) {
+  function histMax(hist, edges) {
+    edges = edges || HIST_EDGES;
     for (var i = hist.length - 1; i >= 0; i--) {
-      if (hist[i] > 0) return i === hist.length - 1 ? 1000 : HIST_EDGES[i];
+      if (hist[i] > 0) return i === hist.length - 1 ? 1000 : edges[i];
     }
     return 0;
   }
@@ -45,21 +48,22 @@
      bucket holding rank p * (total - 1), then interpolate linearly inside
      that bucket. Values never exceed the last bucket's 1000 cap. Returns a
      rounded int, or null when the histogram is empty. */
-  function histPctile(hist, p) {
+  function histPctile(hist, p, edges) {
+    edges = edges || HIST_EDGES;
     var total = histTotal(hist);
     if (!total) return null;
     var rank = p * (total - 1);
     var cum = 0;
     for (var i = 0; i < hist.length; i++) {
       if (cum + hist[i] > rank) {
-        var lo = i === 0 ? 0 : HIST_EDGES[i - 1];
-        var hi = i === hist.length - 1 ? 1000 : HIST_EDGES[i];
+        var lo = i === 0 ? 0 : edges[i - 1];
+        var hi = i === hist.length - 1 ? 1000 : edges[i];
         var frac = hist[i] > 0 ? (rank - cum) / hist[i] : 0;
         return Math.round(lo + (hi - lo) * frac);
       }
       cum += hist[i];
     }
-    var loLast = HIST_EDGES[HIST_EDGES.length - 2];
+    var loLast = edges[edges.length - 2];
     return Math.round(loLast + (1000 - loLast) * Math.min(1, (rank - cum) / Math.max(1, hist[hist.length - 1])));
   }
   /* 0..1 position of a score on the histogram strip: the bar row is
@@ -67,18 +71,19 @@
      interpolates between that bucket's edges. The last (Infinity) bucket
      is capped at 1000 for scaling, and xMax clamps the score so markers
      never run off the right edge. */
-  function scorePos(score, xMax) {
+  function scorePos(score, xMax, edges) {
+    edges = edges || HIST_EDGES;
     if (!isFinite(score)) score = 1000;
     if (score < 0) score = 0;
     if (xMax > 0 && score > xMax) score = xMax;
     var i = 0;
-    while (i < HIST_EDGES.length && score > HIST_EDGES[i]) i++;
-    if (i >= HIST_EDGES.length) i = HIST_EDGES.length - 1;
-    var lo = i === 0 ? 0 : HIST_EDGES[i - 1];
-    var hi = i === HIST_EDGES.length - 1 ? 1000 : HIST_EDGES[i];
+    while (i < edges.length && score > edges[i]) i++;
+    if (i >= edges.length) i = edges.length - 1;
+    var lo = i === 0 ? 0 : edges[i - 1];
+    var hi = i === edges.length - 1 ? 1000 : edges[i];
     var f = hi > lo ? (score - lo) / (hi - lo) : 0;
     if (f > 1) f = 1;
-    return (i + f) / HIST_EDGES.length;
+    return (i + f) / edges.length;
   }
   /* Bar spans for a histogram: height % of the peak bucket, empty buckets
      draw nothing (height 0%) so the distribution is not overstated, while
@@ -246,7 +251,7 @@
     boardCache = fetch('/api/scores?game=' + game + '&_=' + Date.now())
       .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
       .then(function (d) {
-        boardStats = (d && d.hist) ? { hist: d.hist, runs: d.runs || 0 } : null;
+        boardStats = (d && d.hist) ? { hist: d.hist, runs: d.runs || 0, edges: d.edges } : null;
         return (d && d.scores) || [];
       })
       .catch(function () { return null; });
@@ -405,12 +410,13 @@
   }
   var pctToken = 0;
   /* % of all recorded runs this score beat (ties don't count). */
-  function pctBeaten(hist, runs, score) {
+  function pctBeaten(hist, runs, score, edges) {
     if (!runs) return null;
+    edges = edges || HIST_EDGES;
     var beaten = 0;
     for (var i = 0; i < hist.length; i++) {
-      var lo = i === 0 ? 0 : HIST_EDGES[i - 1] + 1;
-      var hi = i === hist.length - 1 ? 2000 : HIST_EDGES[i];
+      var lo = i === 0 ? 0 : edges[i - 1] + 1;
+      var hi = i === hist.length - 1 ? 2000 : edges[i];
       if (hi < score) beaten += hist[i];
       else if (lo < score && hi > lo) beaten += hist[i] * ((score - lo) / (hi - lo));
     }
@@ -436,12 +442,12 @@
         var bars = host.querySelector('.run-dist-bars');
         var mark = host.querySelector('.run-dist-mark');
         bars.innerHTML = distBarsHTML(boardStats.hist);
-        mark.style.left = (scorePos(score, Math.max(histMax(boardStats.hist), score)) * 100) + '%';
+        mark.style.left = (scorePos(score, Math.max(histMax(boardStats.hist, boardStats.edges), score), boardStats.edges) * 100) + '%';
         host.setAttribute('aria-label', 'Your score ' + score + ' in the distribution of ' + (boardStats.runs || histTotal(boardStats.hist)) + ' runs');
         host.hidden = false;
       }
       if (!boardStats || !boardStats.runs) return;
-      var p = pctBeaten(boardStats.hist, boardStats.runs, score);
+      var p = pctBeaten(boardStats.hist, boardStats.runs, score, boardStats.edges);
       if (p == null) return;
       var label;
       if (p >= 99.5) label = 'Top <b>1%</b> of runs';
@@ -586,7 +592,7 @@
     var myBests = null;
     var done = 0;
     function fmt(n) { return n.toLocaleString('en-US') + (n === 1 ? ' play' : ' plays'); }
-    function renderDistVals(dist, hist, best) {
+    function renderDistVals(dist, hist, best, edges) {
       var vals = dist.querySelector('.dist-vals');
       if (!vals) {
         vals = document.createElement('div');
@@ -594,10 +600,10 @@
         dist.appendChild(vals);
       }
       vals.innerHTML = '';
-      var v25 = histPctile(hist, .25);
-      var v50 = histPctile(hist, .5);
-      var v75 = histPctile(hist, .75);
-      var vMax = histMax(hist);
+      var v25 = histPctile(hist, .25, edges);
+      var v50 = histPctile(hist, .5, edges);
+      var v75 = histPctile(hist, .75, edges);
+      var vMax = histMax(hist, edges);
       var xMax = Math.max(vMax, best && best > 0 ? best : 0);
       var W = dist.clientWidth || 160;
       var placed = [];
@@ -605,7 +611,7 @@
         if (v == null) return;
         var text = v.toLocaleString('en-US');
         var w = text.length * 6 + 10;
-        var x = scorePos(v, xMax) * 100;
+        var x = scorePos(v, xMax, edges) * 100;
         var cx = x / 100 * W;
         var lo, hi;
         if (isMax) { lo = cx - w; hi = cx; }
@@ -635,6 +641,7 @@
       var el = document.getElementById('spread-' + gameKey);
       if (!el) return;
       var hist = stats[gameKey] ? stats[gameKey].hist : null;
+      var edges = stats[gameKey] ? stats[gameKey].edges : null;
       var histOk = hist && histTotal(hist) > 0;
       var n = plays[gameKey];
       var best = myBests ? myBests[gameKey] : null;
@@ -651,10 +658,10 @@
         return;
       }
       bars.innerHTML = distBarsHTML(hist);
-      renderDistVals(dist, hist, best);
+      renderDistVals(dist, hist, best, edges);
       dist.hidden = false;
       if (best && best > 0) {
-        mark.style.left = (scorePos(best, Math.max(histMax(hist), best)) * 100) + '%';
+        mark.style.left = (scorePos(best, Math.max(histMax(hist, edges), best), edges) * 100) + '%';
         mark.hidden = false;
       } else {
         mark.hidden = true;
@@ -679,11 +686,11 @@
       if (done === games.length) sortCards();
     }
     function loadGame(gameKey) {
-      var cacheKey = 'arcade-spread-' + gameKey;
+      var cacheKey = 'arcade-spread-v2-' + gameKey;
       try {
         var cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
         if (cached && Date.now() - cached.t < 300000 && Array.isArray(cached.hist)) {
-          stats[gameKey] = { hist: cached.hist };
+          stats[gameKey] = { hist: cached.hist, edges: cached.edges };
           if (typeof cached.plays === 'number') plays[gameKey] = cached.plays;
           paint(gameKey);
           finishOne();
@@ -694,11 +701,12 @@
         .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
         .then(function (d) {
           var hist = (d && Array.isArray(d.hist)) ? d.hist : null;
+          var edges = (d && Array.isArray(d.edges)) ? d.edges : null;
           var n = d && typeof d.plays === 'number' ? d.plays : null;
-          if (hist) stats[gameKey] = { hist: hist };
+          if (hist) stats[gameKey] = { hist: hist, edges: edges };
           if (typeof n === 'number') plays[gameKey] = n;
           paint(gameKey);
-          try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), hist: hist, plays: n })); } catch (e) {}
+          try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), hist: hist, plays: n, edges: edges })); } catch (e) {}
         })
         .catch(function () {})
         .then(function () { finishOne(); });

@@ -234,6 +234,7 @@
           stack.push({ x: prev.x, w: prev.w });
           showToast('Perfect', colors.lime);
           perfectSound();
+          score += 4;
         } else {
           var cutW = m.w - overlap;
           var cutX = dx > 0 ? (m.x + m.w - cutW) : m.x;
