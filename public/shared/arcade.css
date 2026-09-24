@@ -444,25 +444,26 @@ h1 {
   letter-spacing: .06em;
   color: var(--muted);
 }
-.game-card .links { display: flex; gap: 22px; margin-top: 16px; align-items: baseline; }
 .game-card .go {
-  font: 500 13px/1 DM Mono, monospace;
-  letter-spacing: .1em;
+  display: block;
+  margin-top: 20px;
+  padding: 15px 20px 16px;
+  text-align: center;
+  font: 700 15px/1 "DM Mono", monospace;
+  letter-spacing: .14em;
   text-transform: uppercase;
-  color: var(--ink);
+  color: #1a0e00;
+  background: var(--lime);
+  border-radius: 12px;
   text-decoration: none;
+  box-shadow: 0 5px 0 var(--lime-deep), 0 0 18px rgba(255,179,0,.35);
+  transform: translateY(0);
+  transition: transform .1s, box-shadow .1s;
 }
-.game-card .go::after { content: " →"; color: var(--coral); }
-.game-card .go:hover { text-decoration: underline; text-underline-offset: 3px; }
-.game-card .leaders-link {
-  font: 500 12px/1 DM Mono, monospace;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  text-decoration: none;
-}
-.game-card .leaders-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-.game-card .go:focus-visible, .game-card .leaders-link:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+.game-card .go::after { content: " →"; }
+.game-card .go:hover { filter: brightness(1.08); }
+.game-card .go:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--lime-deep), 0 0 18px rgba(255,179,0,.35); }
+.game-card .go:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 .foot { margin: 34px 0 0; color: var(--muted); font: 400 11px/1.6 DM Mono, monospace; letter-spacing: .08em; text-transform: uppercase; }
 @media (max-width: 520px) { .cards { grid-template-columns: 1fr; } }
 
