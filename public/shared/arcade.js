@@ -664,7 +664,10 @@
       if (!histOk) {
         if (typeof n === 'number') {
           dist.hidden = true;
-          meta.innerHTML = fmtPlays(n);
+          var bits0 = [];
+          if (best && best > 0) bits0.push('best <b>' + best.toLocaleString('en-US') + '</b>');
+          bits0.push(fmtPlays(n));
+          meta.innerHTML = bits0.join(' &middot; ');
           el.hidden = false;
         }
         return;
