@@ -321,7 +321,8 @@
         if (state === 'playing') {
           spawnT -= dt;
           if (spawnT <= 0) {
-            if (meteors.length < 14) spawn();
+            var burst = elapsed < 20 ? 2 : 1;
+            for (var i = 0; i < burst && meteors.length < 14; i++) spawn();
             spawnT = spawnInterval() * rand(.85, 1.15);
           }
           var f = fallSpeed();
