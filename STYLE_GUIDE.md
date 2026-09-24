@@ -96,6 +96,26 @@ per rock blasted, per landing. No flat per-second ticks, no arbitrary bonuses.
 Combos and multipliers are fine when they reward skill (consecutive hits without
 missing). Show the score big and centered; update it the moment it changes.
 
+### Scoring balance (read before tuning numbers)
+
+- **All games share one scale.** The global leaderboard sums each player's best
+  per game, so a great run in any game should land in the same band: tens for a
+  decent run, low hundreds for an exceptional one. If one game's scores run 10x
+  the others, it owns the global board and the rest stop mattering.
+- **Keep per-action increments small: 1-3 points.** Multipliers and combos
+  compound faster than intuition says. Do the arithmetic on paper before
+  shipping: meteor's original `10 * combo` gave 550 points for 10 straight
+  hits, which broke the scale. `1 * combo` (1+2+...+10 = 55) plays in the same
+  band as lanes and dodge.
+- **Resets keep combos honest.** A combo should reset on the mistakes that end
+  streaks in that game (a miss, a hit taken, a block dropped). If long streaks
+  are easy to sustain, the multiplier is the scoring system, and it will run
+  away.
+- **Calibrate histogram edges to the expected distribution**, with buckets
+  spread across realistic scores (see API checklist). After real players put up
+  numbers, compare the distribution against the edges and re-tune if scores pile
+  into the first or last buckets.
+
 ## 6. Game-over and leaderboard flow
 
 `Arcade.gameOver()` handles everything: best line, username claim, score save
@@ -140,7 +160,8 @@ number-agnostic.
 - Add the key to `GAMES` (breakout stays listed; it is hidden, not removed).
 - Add 15 histogram edges to `HIST_EDGES`, shaped like the others: bucket 0 is
   exactly {0}, then edges spreading typical scores across the buckets. Calibrate
-  to the game's scoring scale (a meteor run scores ~10x a dodge run).
+  to the game's scoring scale (all games should score in the same band, see
+  Scoring balance).
 - Add the key to `GLOBAL_GAMES` so it counts toward the global leaderboard.
 - `node --check api/scores.js` after editing.
 

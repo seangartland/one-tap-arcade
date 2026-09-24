@@ -207,7 +207,7 @@
           var m = meteors[hit];
           meteors.splice(hit, 1);
           combo++;
-          score += 10 * combo;
+          score += combo;
           ring(m.x, m.y, Math.max(44, m.r * 2.6), colors.cyan);
           burst(m.x, m.y, colors.cyan, 10);
           burst(m.x, m.y, colors.coral, 8);
