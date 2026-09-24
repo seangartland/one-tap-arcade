@@ -40,10 +40,6 @@
               <button id="claimBtn" class="claim" type="button">Claim</button>
             </div>
           </div>
-          <div id="saveWrap" hidden>
-            <p class="save-as">Playing as <b id="saveAs"></b></p>
-            <button id="saveScore" class="primary" type="button">Save score</button>
-          </div>
           <button class="linklike" id="skipSave" type="button">Skip</button>
         </div>
         <div id="board" aria-live="polite">
@@ -93,6 +89,7 @@
       var W = 0, H = 0, dpr = 1;
       var score = 0;
       var round = 1;
+      var impactV = 0;
       var last = 0;
       var particles = [];
       var rings = [];
@@ -249,8 +246,6 @@
         var top = padTopY();
         burst(pad.x, top - 4, colors.muted, 10, 90);
         rings.push({ x: lander.x, y: top - 6, r: 8, life: 1, color: colors.cyan });
-        lander.y = top - 16;
-        lander.vy = 0;
         thrusting = false;
         thrustStop();
         state = 'landed';
@@ -260,13 +255,14 @@
       }
       function crash() {
         state = 'crashed';
+        impactV = Math.round(lander.vy);
         thrusting = false;
         thrustStop();
         crashSound();
         shake = reduced ? 0 : 14;
         flash = .3;
         var surf = surfaceY(lander.x);
-        burst(lander.x, surf - 8, colors.coral, 34, 260);
+        burst(lander.x, surf - 8, colors.coral, Math.min(60, Math.round(24 + lander.vy * 0.06)), 260);
         burst(lander.x, surf - 8, colors.ink, 18, 180);
         rings.push({ x: lander.x, y: surf - 10, r: 10, life: 1, color: colors.coral });
         setTimeout(endGame, 750);
@@ -278,7 +274,7 @@
           title: String(score),
           instruction: score === 0
             ? 'The surface came up fast. Feather the thruster and watch the speed bar.'
-            : 'Crashed on pad ' + round + '. Arrive slow, arrive centered.',
+            : 'Crashed at ' + impactV + ' u/s on pad ' + round + ' (safe under ' + SAFE_V + '). Arrive slow, arrive centered.',
           restartLabel: 'Fly again'
         });
       }
@@ -486,11 +482,26 @@
         ctx.restore();
       }
       function update(dt) {
-        // pad always slides (ambient on menus too)
-        pad.x += pad.dir * pad.speed * dt;
-        var lo = pad.w / 2 + 12, hi = W - pad.w / 2 - 12;
-        if (pad.x < lo) { pad.x = lo; pad.dir = 1; }
-        if (pad.x > hi) { pad.x = hi; pad.dir = -1; }
+        // pad slides only during play (frozen on landed/crashed/over)
+        if (state === 'ready' || state === 'playing') {
+          pad.x += pad.dir * pad.speed * dt;
+          var lo = pad.w / 2 + 12, hi = W - pad.w / 2 - 12;
+          if (pad.x < lo) { pad.x = lo; pad.dir = 1; }
+          if (pad.x > hi) { pad.x = hi; pad.dir = -1; }
+        }
+
+        // post-impact physics: keep integrating so the impact velocity is visible
+        if (state === 'landed' || state === 'crashed') {
+          lander.vy += gravity * dt;
+          lander.y += lander.vy * dt;
+          var surfC = surfaceY(lander.x);
+          if (lander.y + 16 >= surfC && lander.vy > 0) {
+            lander.y = surfC - 16;
+            lander.vy = -lander.vy * 0.42;
+            if (lander.vy > -14) lander.vy = 0;
+          }
+          return;
+        }
 
         if (state !== 'playing') return;
 

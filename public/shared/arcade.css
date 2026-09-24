@@ -269,7 +269,7 @@ h1 {
   text-transform: uppercase;
 }
 .entry-row { display: flex; gap: 10px; align-items: stretch; }
-#claimWrap[hidden], #saveWrap[hidden] { display: none; }
+#claimWrap[hidden] { display: none; }
 #username {
   width: 8.5ch;
   padding: 10px 8px;
@@ -302,16 +302,12 @@ h1 {
 #claimBtn:hover { background: color-mix(in srgb, var(--cyan) 22%, transparent); }
 #claimBtn:active { background: color-mix(in srgb, var(--cyan) 30%, transparent); }
 #claimBtn:disabled { opacity: .55; cursor: default; }
-#saveWrap { margin-top: 2px; }
-.save-as { margin: 0 0 12px; color: var(--muted); font: 400 13px/1.5 DM Mono, monospace; }
-.save-as b { color: var(--ink); }
 @keyframes ishake {
   25% { transform: translateX(-5px); }
   50% { transform: translateX(5px); }
   75% { transform: translateX(-3px); }
 }
 .entry-row .primary { flex: 1; width: auto; }
-#saveScore:disabled { opacity: .55; cursor: default; }
 #board h2 {
   margin: 0 0 10px;
   color: var(--muted);

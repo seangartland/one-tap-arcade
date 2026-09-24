@@ -160,9 +160,6 @@
   var usernameEl = document.getElementById('username');
   var claimBtn = document.getElementById('claimBtn');
   var claimWrap = document.getElementById('claimWrap');
-  var saveWrap = document.getElementById('saveWrap');
-  var saveAsEl = document.getElementById('saveAs');
-  var saveBtn = document.getElementById('saveScore');
   var viewLeadersBtn = document.getElementById('viewLeaders');
   var boardBackBtn = document.getElementById('boardBack');
   var skipBtn = document.getElementById('skipSave');
@@ -287,7 +284,6 @@
 
   function showClaimForm(show) {
     if (claimWrap) claimWrap.hidden = !show;
-    if (saveWrap) saveWrap.hidden = show;
   }
   if (claimBtn) claimBtn.addEventListener('click', function () {
     var name = (usernameEl.value || '').trim().toUpperCase();
@@ -302,8 +298,8 @@
     claimUser(name)
       .then(function (d) {
         if (d && d.ok) {
-          if (saveAsEl) saveAsEl.textContent = d.username;
           showClaimForm(false);
+          if (pendingScore > 0) autoSaveScore();
         } else if (d && d.error === 'taken') {
           showToast('Name taken', colors.coral);
         } else {
@@ -313,40 +309,41 @@
       .catch(function () { showToast("Couldn't claim, offline?", colors.coral); })
       .then(function () { claimBtn.disabled = false; claimBtn.textContent = label; });
   });
-  if (saveBtn) saveBtn.addEventListener('click', function () {
+  function autoSaveScore() {
     var u = getUser();
-    if (!u) { showClaimForm(true); return; }
-    saveBtn.disabled = true;
-    var label = saveBtn.textContent;
-    saveBtn.textContent = 'Saving…';
+    if (!u) return;
     var finalScore = pendingScore;
     saveUserScore(game, finalScore)
       .then(function (d) {
         if (d && d.ok) {
-          overlay.classList.remove('entry-on');
           var best = (d.best != null ? d.best : finalScore);
           var key = u.username + '|' + best;
           var cached = boardCache || fetchBoard();
           return cached.then(function (scores) {
+            var previous = 0;
+            for (var i = 0; i < (scores || []).length; i++) {
+              if (scores[i].name === u.username) { previous = scores[i].score; break; }
+            }
             var list = (scores || []).filter(function (s) { return s.name !== u.username; });
             list.push({ name: u.username, score: best });
             list.sort(function (a, b) { return b.score - a.score; });
             list = list.slice(0, 10);
             boardCache = Promise.resolve(list);
             renderBoard(list, key);
+            if (finalScore > previous) showToast('New best · saved', colors.cyan);
           });
         }
         if (d && d.error === 'bad-token') {
           clearUser();
-          showToast('Name not recognized', colors.coral);
           showClaimForm(true);
+          if (overlay) overlay.classList.add('entry-on');
+          showToast('Name not recognized', colors.coral);
           return;
         }
         showToast("Couldn't save, offline?", colors.coral);
       })
-      .catch(function () { showToast("Couldn't save, offline?", colors.coral); })
-      .then(function () { saveBtn.disabled = false; saveBtn.textContent = label; });
-  });
+      .catch(function () { showToast("Couldn't save, offline?", colors.coral); });
+  }
   if (viewLeadersBtn) viewLeadersBtn.addEventListener('click', showLeaders);
   if (boardBackBtn) boardBackBtn.addEventListener('click', hideLeaders);
   if (skipBtn) skipBtn.addEventListener('click', function () {
@@ -397,12 +394,11 @@
     if (pendingScore > 0 && entryEl) {
       var u = getUser();
       if (u) {
-        if (saveAsEl) saveAsEl.textContent = u.username;
-        showClaimForm(false);
+        autoSaveScore();
       } else {
         showClaimForm(true);
+        if (overlay) overlay.classList.add('entry-on');
       }
-      if (overlay) overlay.classList.add('entry-on');
     }
     showRunPercentile(pendingScore);
     if (startBtn) setTimeout(function () { startBtn.focus({ preventScroll: true }); }, 320);
