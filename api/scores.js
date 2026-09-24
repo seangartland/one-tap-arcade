@@ -1,7 +1,8 @@
-// Leaderboard backend: a single secret GitHub gist holding { pulse: [...], tower: [...] }.
+// Leaderboard backend: a single secret GitHub gist holding
+// { pulse: { scores: [...], plays: n }, ... }. Old { game: [...] } boards auto-migrate on read.
 // Env vars (set on the Vercel project): GIST_ID, GITHUB_TOKEN (encrypted, server-side only).
 
-const GAMES = ['pulse', 'tower', 'wave', 'breakout', 'lander', 'dodge'];
+const GAMES = ['pulse', 'tower', 'breakout', 'lander', 'dodge'];
 const FILENAME = 'arcade-leaderboard.json';
 const MAX_ENTRIES = 10;
 
@@ -21,6 +22,12 @@ function ghHeaders() {
   };
 }
 
+function normGame(v) {
+  if (Array.isArray(v)) return { scores: v, plays: 0 };
+  if (v && Array.isArray(v.scores)) return { scores: v.scores, plays: Math.max(0, Number(v.plays) || 0) };
+  return { scores: [], plays: 0 };
+}
+
 async function readBoard() {
   const r = await fetch('https://api.github.com/gists/' + GIST_ID, { headers: ghHeaders() });
   if (!r.ok) throw new Error('gist read failed: ' + r.status);
@@ -33,7 +40,7 @@ async function readBoard() {
     data = {};
   }
   const board = {};
-  for (const g of GAMES) board[g] = Array.isArray(data[g]) ? data[g] : [];
+  for (const g of GAMES) board[g] = normGame(data[g]);
   return board;
 }
 
@@ -63,7 +70,7 @@ module.exports = async function handler(req, res) {
       const game = req.query.game;
       if (!GAMES.includes(game)) return json(res, 400, { error: 'invalid' });
       const board = await readBoard();
-      const payload = JSON.stringify({ scores: cleanEntries(board[game]) });
+      const payload = JSON.stringify({ scores: cleanEntries(board[game].scores), plays: board[game].plays });
       res.writeHead(200, {
         'Content-Type': 'application/json',
         'Cache-Control': 's-maxage=15, stale-while-revalidate=60',
@@ -76,18 +83,23 @@ module.exports = async function handler(req, res) {
       const body = req.body || {};
       const game = body.game;
       if (!GAMES.includes(game)) return json(res, 400, { error: 'invalid' });
+      const board = await readBoard();
+      if (body.play === true) {
+        board[game].plays += 1;
+        await writeBoard(board);
+        return json(res, 200, { ok: true, plays: board[game].plays });
+      }
       const name = String(body.name || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
       const score = Number(body.score);
       if (!name || !Number.isInteger(score) || score < 1 || score > 99999) {
         return json(res, 400, { error: 'invalid' });
       }
-      const board = await readBoard();
-      const entries = cleanEntries(board[game]);
+      const entries = cleanEntries(board[game].scores);
       entries.push({ name, score, at: Date.now() });
       entries.sort((a, b) => b.score - a.score || (a.at || 0) - (b.at || 0));
-      board[game] = entries.slice(0, MAX_ENTRIES).map(({ name, score }) => ({ name, score }));
+      board[game].scores = entries.slice(0, MAX_ENTRIES).map(({ name, score }) => ({ name, score }));
       await writeBoard(board);
-      return json(res, 200, { ok: true, scores: board[game] });
+      return json(res, 200, { ok: true, scores: board[game].scores, plays: board[game].plays });
     }
 
     res.setHeader('Allow', 'GET, POST');

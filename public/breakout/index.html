@@ -7,380 +7,16 @@
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#f4f1ea" />
   <title>Breakout — a neon brick breaker</title>
+  <link rel="stylesheet" href="/shared/arcade.css" />
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@500;650;750&display=swap');
-
-    :root {
-      color-scheme: light dark;
-      --paper: #f4f1ea;
-      --ink: #151718;
-      --muted: #6d716e;
-      --line: rgba(21,23,24,.14);
-      --cyan: #087f8c;
-      --coral: #e95d45;
-      --lime: #bbda45;
-      --panel: rgba(244,241,234,.82);
-      --shadow: rgba(32,30,25,.18);
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --paper: #111416;
-        --ink: #f2f0e9;
-        --muted: #a7aaa7;
-        --line: rgba(242,240,233,.15);
-        --cyan: #4bc7cf;
-        --coral: #ff765f;
-        --lime: #cde85a;
-        --panel: rgba(17,20,22,.82);
-        --shadow: rgba(0,0,0,.35);
-      }
-      meta[name="theme-color"] { content: #111416; }
-    }
-
-    * { box-sizing: border-box; }
-    html, body { width: 100%; min-height: 100%; margin: 0; overflow: hidden; }
-    body {
-      min-height: 100svh;
-      background: var(--paper);
-      color: var(--ink);
-      font-family: Manrope, ui-sans-serif, sans-serif;
-      -webkit-tap-highlight-color: transparent;
-      overscroll-behavior: none;
-      user-select: none;
-    }
-    button { font: inherit; }
-
-    .game {
-      position: relative;
-      width: 100%;
-      height: 100svh;
-      min-height: 480px;
-      isolation: isolate;
-      background:
-        radial-gradient(circle at 22% 14%, color-mix(in srgb, var(--lime) 16%, transparent), transparent 31%),
-        radial-gradient(circle at 82% 83%, color-mix(in srgb, var(--cyan) 14%, transparent), transparent 34%),
-        var(--paper);
-    }
-    .grain {
-      pointer-events: none;
-      position: absolute;
-      inset: 0;
-      opacity: .15;
-      z-index: 4;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.25'/%3E%3C/svg%3E");
-      mix-blend-mode: multiply;
-    }
-    @media (prefers-color-scheme: dark) { .grain { mix-blend-mode: screen; opacity: .09; } }
-
-    canvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      touch-action: none;
-      outline: none;
-      cursor: crosshair;
-    }
-
-    .hud {
-      position: absolute;
-      top: max(24px, env(safe-area-inset-top));
-      left: max(24px, env(safe-area-inset-left));
-      right: max(24px, env(safe-area-inset-right));
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      pointer-events: none;
-      z-index: 3;
-    }
-    .score {
-      font: 500 clamp(30px, 5vw, 48px)/1 DM Mono, monospace;
-      letter-spacing: -.06em;
-      min-width: 2ch;
-      text-align: center;
-    }
-    .lives { display: flex; gap: 8px; }
-    .life {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      border: 1.5px solid var(--ink);
-      background: var(--ink);
-      transition: transform .2s, background .2s;
-    }
-    .life.lost { background: transparent; transform: scale(.68); }
-
-    .sound {
-      position: absolute;
-      z-index: 6;
-      right: max(20px, env(safe-area-inset-right));
-      bottom: max(20px, env(safe-area-inset-bottom));
-      width: 44px;
-      height: 44px;
-      border: 1px solid var(--line);
-      border-radius: 50%;
-      color: var(--ink);
-      background: color-mix(in srgb, var(--paper) 78%, transparent);
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      backdrop-filter: blur(8px);
-    }
-    .sound svg { width: 18px; height: 18px; }
-    .sound .off { display: none; }
-    .sound[aria-pressed="false"] .on { display: none; }
-    .sound[aria-pressed="false"] .off { display: block; }
-    .sound:focus-visible, .primary:focus-visible, .linklike:focus-visible, .home:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
-
-    .overlay {
-      position: absolute;
-      inset: 0;
-      z-index: 5;
-      display: grid;
-      place-items: center;
-      padding: 28px;
-      background: color-mix(in srgb, var(--paper) 48%, transparent);
-      backdrop-filter: blur(7px);
-      transition: opacity .3s ease, visibility .3s;
-    }
-    .overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-    .card {
-      width: min(430px, 100%);
-      text-align: center;
-      padding: 34px 28px 30px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      box-shadow: 0 24px 80px var(--shadow);
-      border-radius: 28px 28px 10px 28px;
-    }
-    .mark {
-      width: 72px;
-      height: 72px;
-      margin: 0 auto 25px;
-      position: relative;
-      border: 1px solid var(--line);
-      border-radius: 50%;
-    }
-    .mark::before {
-      content: "";
-      position: absolute;
-      width: 12px;
-      height: 12px;
-      left: 50%;
-      top: -6px;
-      margin-left: -6px;
-      background: var(--coral);
-      border-radius: 50%;
-      box-shadow: 0 0 0 5px color-mix(in srgb, var(--coral) 20%, transparent);
-    }
-    .mark::after {
-      content: "";
-      position: absolute;
-      width: 20px;
-      height: 8px;
-      left: 50%;
-      bottom: -5px;
-      margin-left: -10px;
-      background: var(--lime);
-      border-radius: 8px;
-    }
-    h1 {
-      margin: 0;
-      font-size: clamp(32px, 8vw, 54px);
-      letter-spacing: -.055em;
-      line-height: .96;
-      font-weight: 750;
-    }
-    .instruction {
-      margin: 18px auto 26px;
-      color: var(--muted);
-      line-height: 1.55;
-      font-size: 16px;
-      max-width: 28ch;
-    }
-    .key {
-      display: inline-block;
-      padding: 1px 6px 2px;
-      margin: 0 1px;
-      border: 1px solid var(--line);
-      border-bottom-width: 2px;
-      border-radius: 6px;
-      color: var(--ink);
-      font: 500 12px/1.45 DM Mono, monospace;
-      vertical-align: 1px;
-    }
-    .primary {
-      width: 100%;
-      border: 0;
-      border-radius: 12px;
-      padding: 15px 20px 16px;
-      color: #101312;
-      background: var(--lime);
-      font-size: 15px;
-      font-weight: 750;
-      cursor: pointer;
-      box-shadow: 0 5px 0 color-mix(in srgb, var(--lime) 55%, #59601d);
-      transform: translateY(0);
-      transition: transform .1s, box-shadow .1s;
-    }
-    .primary:active { transform: translateY(4px); box-shadow: 0 1px 0 color-mix(in srgb, var(--lime) 55%, #59601d); }
-    .result-label {
-      display: none;
-      color: var(--coral);
-      font: 500 12px/1 DM Mono, monospace;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      margin-bottom: 12px;
-    }
-    .overlay.over .mark { display: none; }
-    .overlay.over .result-label { display: block; }
-    .overlay.over h1 { font-family: DM Mono, monospace; letter-spacing: -.075em; }
-    .overlay.over .instruction { margin-bottom: 9px; }
-    .session-best {
-      display: none;
-      margin: 0 0 26px;
-      color: var(--muted);
-      font: 400 12px/1.4 DM Mono, monospace;
-    }
-    .overlay.over .session-best { display: block; }
-    #entry, #board { display: none; margin: 0 0 22px; }
-    .overlay.over.entry-on #entry { display: block; }
-    .overlay.over.board-on #board { display: block; }
-    #entry label {
-      display: block;
-      margin: 0 0 10px;
-      color: var(--muted);
-      font: 500 11px/1 DM Mono, monospace;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-    }
-    .entry-row { display: flex; gap: 10px; align-items: stretch; }
-    #initials {
-      width: 4.8ch;
-      padding: 10px 4px;
-      text-align: center;
-      font: 500 24px/1.2 DM Mono, monospace;
-      letter-spacing: .22em;
-      text-indent: .22em;
-      text-transform: uppercase;
-      color: var(--ink);
-      background: transparent;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-    #initials:focus { outline: 3px solid var(--cyan); outline-offset: 2px; }
-    #initials.shake { animation: ishake .32s; border-color: var(--coral); }
-    @keyframes ishake {
-      25% { transform: translateX(-5px); }
-      50% { transform: translateX(5px); }
-      75% { transform: translateX(-3px); }
-    }
-    .entry-row .primary { flex: 1; width: auto; }
-    #saveScore:disabled { opacity: .55; cursor: default; }
-    #board h2 {
-      margin: 0 0 10px;
-      color: var(--muted);
-      font: 500 11px/1 DM Mono, monospace;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-    }
-    #boardList {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      font: 400 13px/2 DM Mono, monospace;
-      color: var(--muted);
-    }
-    #boardList li { display: flex; justify-content: space-between; gap: 12px; }
-    #boardList li.me { color: var(--coral); }
-    #boardList li.empty { justify-content: center; }
-    .linklike {
-      background: transparent;
-      border: 0;
-      padding: 6px 8px;
-      color: var(--muted);
-      font: 500 12px/1.6 DM Mono, monospace;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      cursor: pointer;
-    }
-    .linklike:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-    #skipSave { margin-top: 12px; }
-    .card-foot { margin-top: 18px; }
-    #boardBack { display: none; margin-top: 14px; }
-    .overlay.over .card-foot { display: none; }
-    .overlay.leaders-on #entry { display: none !important; }
-    .overlay.leaders-on .card-foot { display: none; }
-    .overlay.leaders-on #board { display: block; }
-    .overlay.leaders-on #boardBack { display: inline-block; }
-    .home {
-      position: absolute;
-      z-index: 6;
-      top: max(70px, calc(env(safe-area-inset-top) + 46px));
-      right: max(20px, env(safe-area-inset-right));
-      padding: 8px 4px;
-      color: var(--muted);
-      font: 500 12px/1 DM Mono, monospace;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      text-decoration: none;
-    }
-    .home:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-
-    .toast {
-      position: absolute;
-      z-index: 3;
-      left: 50%;
-      top: 18%;
-      transform: translate(-50%, 8px);
-      opacity: 0;
-      color: var(--ink);
-      font: 500 13px/1 DM Mono, monospace;
-      letter-spacing: .09em;
-      text-transform: uppercase;
-      pointer-events: none;
-    }
-    .toast.pop { animation: toast .55s ease-out; }
-    @keyframes toast {
-      0% { opacity: 0; transform: translate(-50%, 10px) scale(.9); }
-      25% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-      70% { opacity: 1; transform: translate(-50%, -4px); }
-      100% { opacity: 0; transform: translate(-50%, -13px); }
-    }
-    .hint {
-      position: absolute;
-      z-index: 3;
-      bottom: max(27px, env(safe-area-inset-bottom));
-      left: 50%;
-      transform: translateX(-50%);
-      color: var(--muted);
-      font: 400 11px/1 DM Mono, monospace;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      pointer-events: none;
-      opacity: .78;
-      transition: opacity .3s;
-    }
-    .playing .hint { opacity: 0; }
-
-    @media (max-width: 520px) {
-      .game { min-height: 420px; }
-      .hud { top: max(18px, env(safe-area-inset-top)); left: 19px; right: 19px; }
-      .sound { right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); width: 42px; height: 42px; }
-      .card { padding: 29px 22px 24px; border-radius: 24px 24px 8px 24px; }
-      .hint { bottom: max(28px, env(safe-area-inset-bottom)); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .overlay, .life, .primary { transition: none; }
-      .toast.pop { animation-duration: .01ms; }
-    }
+    canvas { touch-action: none; }
+    .hud-stack .score { text-align: center; }
   </style>
 </head>
-<body>
+<body class="game">
   <main class="game" id="game">
     <canvas id="canvas" tabindex="0" aria-label="Neon brick breaker game. Drag to move the paddle, tap to launch the ball."></canvas>
-    <div class="hud" aria-live="polite">
+    <div class="hud hud-stack" aria-live="polite">
       <span class="score" id="score">0</span>
       <div class="lives" aria-label="3 lives remaining">
         <span class="life"></span><span class="life"></span><span class="life"></span>
@@ -423,109 +59,35 @@
   </main>
 
   <script>
+    window.ARCADE = {
+      game: 'breakout',
+      tagline: 'Drag to slide the paddle. Smash every brick.',
+      startLabel: 'Start smashing',
+      restartLabel: 'Smash again',
+      resultLabel: 'Run complete',
+      boardHeading: 'Breakout · Global leaders'
+    };
+  </script>
+  <script src="/shared/arcade.js"></script>
+
+  <script>
     (function () {
       'use strict';
       var canvas = document.getElementById('canvas');
       var ctx = canvas.getContext('2d');
-      var gameEl = document.getElementById('game');
-      var overlay = document.getElementById('overlay');
-      var startBtn = document.getElementById('start');
+      var gameEl = Arcade.gameEl;
       var scoreEl = document.getElementById('score');
-      var toast = document.getElementById('toast');
-      var soundBtn = document.getElementById('sound');
       var livesEls = Array.prototype.slice.call(document.querySelectorAll('.life'));
-      var instructionEl = document.getElementById('instruction');
-      var sessionBestEl = document.getElementById('sessionBest');
-      var boardList = document.getElementById('boardList');
-      var initialsEl = document.getElementById('initials');
-      var saveBtn = document.getElementById('saveScore');
-      var GAME = 'breakout';
-      var boardCache = null;
-
-      function esc(s) {
-        return String(s).replace(/[&<>"']/g, function (c) {
-          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-        });
-      }
-      function fetchBoard() {
-        boardCache = fetch('/api/scores?game=' + GAME + '&_=' + Date.now())
-          .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
-          .then(function (d) { return (d && d.scores) || []; })
-          .catch(function () { return null; });
-        return boardCache;
-      }
-      function renderBoard(scores, highlightKey, force) {
-        if ((!scores || !scores.length) && !force) { overlay.classList.remove('board-on'); return; }
-        var html = '';
-        if (scores && scores.length) {
-          var done = false;
-          scores.slice(0, 10).forEach(function (s, i) {
-            var key = s.name + '|' + s.score;
-            var me = highlightKey && !done && key === highlightKey;
-            if (me) done = true;
-            html += '<li' + (me ? ' class="me"' : '') + '><span>' + (i + 1) + '. ' + esc(s.name) + '</span><span>' + esc(s.score) + '</span></li>';
-          });
-        } else {
-          html = '<li class="empty"><span>No scores yet — be the first.</span></li>';
-        }
-        boardList.innerHTML = html;
-        overlay.classList.add('board-on');
-      }
-      saveBtn.addEventListener('click', function () {
-        var name = (initialsEl.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
-        if (!name) {
-          initialsEl.classList.remove('shake'); void initialsEl.offsetWidth; initialsEl.classList.add('shake');
-          showToast('Enter initials', colors.coral);
-          return;
-        }
-        try { localStorage.setItem('arcade-initials', name); } catch (e) {}
-        saveBtn.disabled = true;
-        var label = saveBtn.textContent;
-        saveBtn.textContent = 'Saving…';
-        fetch('/api/scores', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ game: GAME, name: name, score: score })
-        }).then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
-          .then(function () {
-            overlay.classList.remove('entry-on');
-            var key = name + '|' + score;
-            return boardCache.then(function (scores) {
-              var list = (scores || []).slice();
-              list.push({ name: name, score: score });
-              list.sort(function (a, b) { return b.score - a.score; });
-              list = list.slice(0, 10);
-              boardCache = Promise.resolve(list);
-              renderBoard(list, key);
-            });
-          })
-          .catch(function () { showToast("Couldn't save — offline?", colors.coral); })
-          .then(function () { saveBtn.disabled = false; saveBtn.textContent = label; });
-      });
-      var viewLeadersBtn = document.getElementById('viewLeaders');
-      var boardBackBtn = document.getElementById('boardBack');
-      var skipBtn = document.getElementById('skipSave');
-      function showLeaders() {
-        overlay.classList.add('leaders-on');
-        fetchBoard().then(function (scores) { renderBoard(scores, null, true); });
-        setTimeout(function(){ boardBackBtn.focus({preventScroll:true}); }, 120);
-      }
-      function hideLeaders() {
-        overlay.classList.remove('leaders-on');
-        setTimeout(function(){ viewLeadersBtn.focus({preventScroll:true}); }, 120);
-      }
-      viewLeadersBtn.addEventListener('click', showLeaders);
-      boardBackBtn.addEventListener('click', hideLeaders);
-      skipBtn.addEventListener('click', function () {
-        overlay.classList.remove('entry-on');
-        fetchBoard().then(function (scores) { renderBoard(scores, null); });
-      });
       var livesLabel = document.querySelector('.lives');
+      var tone = Arcade.tone;
+      var showToast = Arcade.showToast;
+      var colors = Arcade.colors;
+
 
       /* ---------- game state ---------- */
       var state = 'ready'; // ready | serve | playing | over
       var W = 0, H = 0, dpr = 1;
-      var score = 0, lives = 3, level = 1, sessionBest = 0;
+      var score = 0, lives = 3, level = 1;
       var streak = 0;            // consecutive bricks without touching paddle
       var bricksSmashed = 0;    // total this run, drives speed-ups
       var last = 0;
@@ -535,10 +97,6 @@
       var shake = 0;
       var paddleGlow = 0;
       var wallTickCd = 0;
-      var muted = false;
-      var audio = null;
-      var audioOut = null;
-      var colors = {};
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       var paddle = { x: 0, w: 120, h: 13, y: 0, targetX: 0 };
@@ -552,15 +110,7 @@
       var ROW_POINTS = [50, 40, 30, 20, 10];
       var COLS = 8, ROWS = 5;
 
-      function css(name) {
-        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-      }
-      function refreshColors() {
-        colors.paper = css('--paper'); colors.ink = css('--ink'); colors.muted = css('--muted');
-        colors.line = css('--line'); colors.cyan = css('--cyan'); colors.coral = css('--coral'); colors.lime = css('--lime');
-      }
-      refreshColors();
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', refreshColors);
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', Arcade.refreshColors);
 
       function rand(min, max) { return min + Math.random() * (max - min); }
       function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
@@ -613,35 +163,6 @@
       }
 
       /* ---------- audio ---------- */
-      function initAudio(onReady) {
-        var AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        if (!audio) {
-          audio = new AudioContext();
-          audioOut = audio.createGain();
-          audioOut.gain.value = .9;
-          audioOut.connect(audio.destination);
-        }
-        if (audio.state === 'suspended') {
-          audio.resume().then(function () { if (onReady) onReady(); }).catch(function () {});
-        } else if (onReady) {
-          onReady();
-        }
-      }
-      function tone(freq, duration, type, volume, delay) {
-        if (muted) return;
-        initAudio(function () {
-          var when = audio.currentTime + (delay || 0);
-          var o = audio.createOscillator();
-          var g = audio.createGain();
-          o.type = type || 'sine'; o.frequency.setValueAtTime(freq, when);
-          g.gain.setValueAtTime(.0001, when);
-          g.gain.exponentialRampToValueAtTime(volume || .09, when + .012);
-          g.gain.exponentialRampToValueAtTime(.0001, when + duration);
-          o.connect(g); g.connect(audioOut);
-          o.start(when); o.stop(when + duration + .03);
-        });
-      }
       function brickSound() {
         var mult = Math.min(2.2, 1 + streak * 0.07);
         tone(540 * mult, .09, 'sine', .10, 0);
@@ -666,12 +187,6 @@
         livesLabel.setAttribute('aria-label', lives + (lives === 1 ? ' life remaining' : ' lives remaining'));
       }
       function setScore() { scoreEl.textContent = String(score); }
-      function showToast(text, color) {
-        var t = document.getElementById('toast');
-        t.textContent = text;
-        t.style.color = color || colors.ink;
-        t.classList.remove('pop'); void t.offsetWidth; t.classList.add('pop');
-      }
       function burst(x, y, color, count) {
         if (reduced) count = Math.min(count, 4);
         for (var i = 0; i < count; i++) {
@@ -683,7 +198,7 @@
 
       /* ---------- flow ---------- */
       function startGame() {
-        initAudio();
+        Arcade.startFlow();
         state = 'serve';
         score = 0; lives = 3; level = 1;
         streak = 0; bricksSmashed = 0;
@@ -693,7 +208,6 @@
         paddle.x = W / 2; paddle.targetX = W / 2;
         buildLevel(); stickBall();
         setScore(); setLives();
-        overlay.classList.add('hidden'); overlay.classList.remove('over');
         tone(440, .09, 'sine', .07, 0);
         tone(660, .13, 'sine', .06, .065);
         canvas.focus({preventScroll: true});
@@ -736,22 +250,14 @@
       }
       function endGame() {
         state = 'over'; gameEl.classList.remove('playing');
-        sessionBest = Math.max(sessionBest, score);
-        document.getElementById('title').textContent = String(score);
-        instructionEl.textContent = score === 0
-          ? 'The bricks held their ground. Drag the paddle and tap to launch.'
-          : (score < 300 ? 'Solid smashing. Higher rows pay more — aim up.' : 'Certified brick demolisher. One more run?');
-        sessionBestEl.textContent = 'Session best · ' + sessionBest;
-        startBtn.textContent = 'Smash again';
-        overlay.classList.add('over'); overlay.classList.remove('hidden');
-        overlay.classList.remove('entry-on', 'board-on', 'leaders-on');
-        boardList.innerHTML = '';
-        if (score > 0) {
-          try { initialsEl.value = localStorage.getItem('arcade-initials') || ''; } catch (e) {}
-          overlay.classList.add('entry-on');
-        }
-        fetchBoard();
-        setTimeout(function(){ startBtn.focus({preventScroll: true}); }, 320);
+        Arcade.gameOver({
+          score: score,
+          title: String(score),
+          instruction: score === 0
+            ? 'The bricks held their ground. Drag the paddle and tap to launch.'
+            : (score < 300 ? 'Solid smashing. Higher rows pay more — aim up.' : 'Certified brick demolisher. One more run?'),
+          restartLabel: 'Smash again'
+        });
       }
 
       /* ---------- physics ---------- */
@@ -986,11 +492,11 @@
       }
 
       /* ---------- input ---------- */
-      startBtn.addEventListener('click', startGame);
-      if (window.location.hash === '#leaders') { showLeaders(); }
+      ARCADE.onStart = startGame;
+      ARCADE.onVisibility = function(){ last = performance.now(); };
       canvas.addEventListener('pointerdown', function (e) {
         e.preventDefault();
-        initAudio();
+        Arcade.initAudio();
         dragging = true;
         paddle.targetX = e.clientX;
         canvas.focus({preventScroll: true});
@@ -1005,21 +511,13 @@
         if (e.code === 'ArrowLeft') { keyL = true; e.preventDefault(); }
         else if (e.code === 'ArrowRight') { keyR = true; e.preventDefault(); }
         else if ((e.code === 'Space' || e.code === 'Enter')) {
-          if (state === 'serve') { e.preventDefault(); initAudio(); launchBall(); }
+          if (state === 'serve') { e.preventDefault(); Arcade.initAudio(); launchBall(); }
         }
       });
       document.addEventListener('keyup', function (e) {
         if (e.code === 'ArrowLeft') keyL = false;
         else if (e.code === 'ArrowRight') keyR = false;
       });
-      soundBtn.addEventListener('click', function (e) {
-        e.stopPropagation(); muted = !muted;
-        soundBtn.setAttribute('aria-pressed', String(!muted));
-        soundBtn.setAttribute('aria-label', muted ? 'Turn sound on' : 'Mute sound');
-        if (!muted) { initAudio(); tone(620, .1, 'sine', .04, 0); }
-      });
-      document.addEventListener('visibilitychange', function () { last = performance.now(); });
-      document.addEventListener('pointerdown', function () { initAudio(); }, {once: true});
 
       resize();
       requestAnimationFrame(loop);
