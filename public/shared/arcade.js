@@ -207,6 +207,7 @@
 
   /* ---------- run-flow helpers ---------- */
   function startFlow() {
+    statSent = false;
     initAudio();
     if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('over'); }
     /* Count the run: fire-and-forget, never blocks game start. */
@@ -218,9 +219,21 @@
       }).catch(function () {});
     } catch (e) {}
   }
+  var statSent = false;
   function gameOver(o) {
     o = o || {};
     pendingScore = o.score || 0;
+    /* Report the final score for distribution stats (includes 0s): fire-and-forget, once per run. */
+    if (!statSent) {
+      statSent = true;
+      try {
+        fetch('/api/scores', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ game: game, stat: true, score: pendingScore })
+        }).catch(function () {});
+      } catch (e) {}
+    }
     var best = Math.max(bestByGame[game] || 0, pendingScore);
     bestByGame[game] = best;
     if (titleEl) titleEl.textContent = (o.title != null ? o.title : '');
@@ -289,12 +302,47 @@
       var lo = Math.floor(i), hi = Math.ceil(i);
       return Math.round(sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo));
     }
-    function summarize(scores) {
+    var HIST_EDGES = [0, 1, 2, 4, 9, 19, 29, 49, 74, 99, 149, 249, 499, 999, Infinity];
+    function histTotal(hist) {
+      var t = 0;
+      for (var i = 0; i < hist.length; i++) t += hist[i];
+      return t;
+    }
+    /* Interpolated percentile from histogram buckets. Bucket 0 = {0};
+       bucket i covers (HIST_EDGES[i-1], HIST_EDGES[i]]. */
+    function histPct(hist, p) {
+      var total = histTotal(hist);
+      if (!total) return null;
+      var rank = p * (total - 1);
+      var cum = 0;
+      for (var i = 0; i < hist.length; i++) {
+        var c = hist[i];
+        if (rank < cum + c && c > 0) {
+          var lo = i === 0 ? 0 : HIST_EDGES[i - 1] + 1;
+          var hi = i === hist.length - 1 ? 2000 : HIST_EDGES[i];
+          return Math.round(lo + ((rank - cum) / c) * (hi - lo));
+        }
+        cum += c;
+      }
+      return HIST_EDGES[0];
+    }
+    function histMax(hist) {
+      for (var i = hist.length - 1; i >= 0; i--) {
+        if (hist[i] > 0) return i === hist.length - 1 ? 1000 : HIST_EDGES[i];
+      }
+      return 0;
+    }
+    function summarize(scores, hist) {
       var vals = (scores || []).map(function (s) { return s.score; })
         .filter(function (v) { return typeof v === 'number' && isFinite(v); })
         .sort(function (a, b) { return a - b; });
+      var top = vals.length ? vals[vals.length - 1] : null;
+      if (hist && histTotal(hist) > 0) {
+        return { q1: histPct(hist, .25), med: histPct(hist, .5), q3: histPct(hist, .75),
+                 top: top != null ? top : histMax(hist) };
+      }
       if (!vals.length) return null;
-      return { q1: pct(vals, .25), med: pct(vals, .5), q3: pct(vals, .75), top: vals[vals.length - 1] };
+      return { q1: pct(vals, .25), med: pct(vals, .5), q3: pct(vals, .75), top: top };
     }
     function renderSpread(gameKey, sum, n) {
       var el = document.getElementById('spread-' + gameKey);
@@ -350,7 +398,7 @@
       fetch('/api/scores?game=' + gameKey)
         .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
         .then(function (d) {
-          var sum = summarize(d && d.scores);
+          var sum = summarize(d && d.scores, d && d.hist);
           var n = d && typeof d.plays === 'number' ? d.plays : null;
           renderSpread(gameKey, sum, n);
           try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), sum: sum, plays: n })); } catch (e) {}

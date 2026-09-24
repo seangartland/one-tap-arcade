@@ -6,6 +6,20 @@ const GAMES = ['pulse', 'tower', 'breakout', 'lander', 'dodge'];
 const FILENAME = 'arcade-leaderboard.json';
 const MAX_ENTRIES = 10;
 
+/* Score histogram: counts every completed run's final score (including 0s,
+   which never reach the named leaderboard). Bucket i covers scores
+   (HIST_EDGES[i-1], HIST_EDGES[i]], with bucket 0 = {0} exactly. */
+const HIST_EDGES = [0, 1, 2, 4, 9, 19, 29, 49, 74, 99, 149, 249, 499, 999, Infinity];
+function histBin(score) {
+  for (let i = 0; i < HIST_EDGES.length; i++) if (score <= HIST_EDGES[i]) return i;
+  return HIST_EDGES.length - 1;
+}
+function normHist(v) {
+  const n = HIST_EDGES.length;
+  if (Array.isArray(v) && v.length === n && v.every((x) => Number.isInteger(x) && x >= 0)) return v.slice();
+  return new Array(n).fill(0);
+}
+
 const GIST_ID = process.env.GIST_ID;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
@@ -23,9 +37,14 @@ function ghHeaders() {
 }
 
 function normGame(v) {
-  if (Array.isArray(v)) return { scores: v, plays: 0 };
-  if (v && Array.isArray(v.scores)) return { scores: v.scores, plays: Math.max(0, Number(v.plays) || 0) };
-  return { scores: [], plays: 0 };
+  if (Array.isArray(v)) return { scores: v, plays: 0, hist: normHist(), runs: 0 };
+  if (v && Array.isArray(v.scores)) return {
+    scores: v.scores,
+    plays: Math.max(0, Number(v.plays) || 0),
+    hist: normHist(v.hist),
+    runs: Math.max(0, Number(v.runs) || 0),
+  };
+  return { scores: [], plays: 0, hist: normHist(), runs: 0 };
 }
 
 async function readBoard() {
@@ -70,7 +89,8 @@ module.exports = async function handler(req, res) {
       const game = req.query.game;
       if (!GAMES.includes(game)) return json(res, 400, { error: 'invalid' });
       const board = await readBoard();
-      const payload = JSON.stringify({ scores: cleanEntries(board[game].scores), plays: board[game].plays });
+      const g = board[game];
+      const payload = JSON.stringify({ scores: cleanEntries(g.scores), plays: g.plays, hist: normHist(g.hist), runs: g.runs });
       res.writeHead(200, {
         'Content-Type': 'application/json',
         'Cache-Control': 's-maxage=15, stale-while-revalidate=60',
@@ -88,6 +108,18 @@ module.exports = async function handler(req, res) {
         board[game].plays += 1;
         await writeBoard(board);
         return json(res, 200, { ok: true, plays: board[game].plays });
+      }
+      if (body.stat === true) {
+        const stScore = Number(body.score);
+        if (!Number.isInteger(stScore) || stScore < 0 || stScore > 99999) {
+          return json(res, 400, { error: 'invalid' });
+        }
+        const g = board[game];
+        g.hist = normHist(g.hist);
+        g.hist[histBin(stScore)] += 1;
+        g.runs = (Number(g.runs) || 0) + 1;
+        await writeBoard(board);
+        return json(res, 200, { ok: true });
       }
       const name = String(body.name || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
       const score = Number(body.score);
@@ -108,3 +140,6 @@ module.exports = async function handler(req, res) {
     return json(res, 500, { error: 'unavailable' });
   }
 };
+
+// Test hook (no-op on Vercel).
+module.exports._test = { histBin, normHist, HIST_EDGES };
