@@ -158,6 +158,7 @@
   }
 
   function draw(){
+    x.globalCompositeOperation="source-over";
     x.fillStyle="#05070f";x.fillRect(0,0,W,H);
     x.globalCompositeOperation="lighter";
     for(var s=0;s<stars.length;s++){
@@ -205,6 +206,7 @@
     }
     x.globalAlpha=1;
     if(flash>0){x.globalAlpha=flash*.5;x.fillStyle="#ffd9a8";x.fillRect(0,0,W,H);x.globalAlpha=1;}
+    x.globalCompositeOperation="source-over";
   }
 
   function rock(m,r){
@@ -230,6 +232,10 @@
   }
   c.addEventListener("touchstart",tap,{passive:false});
   c.addEventListener("mousedown",tap);
+  startEl.addEventListener("touchstart",tap,{passive:false});
+  startEl.addEventListener("mousedown",tap);
+  overEl.addEventListener("touchstart",tap,{passive:false});
+  overEl.addEventListener("mousedown",tap);
 
   syncHud();
   bestEl.innerHTML="best "+best;
