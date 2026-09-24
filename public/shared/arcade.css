@@ -350,7 +350,7 @@ h1 {
 #skipSave { margin-top: 12px; }
 .card-foot { margin-top: 18px; }
 #boardBack { display: none; margin-top: 14px; }
-.overlay.over .card-foot { display: none; }
+.overlay.over.board-on .card-foot { display: none; }
 .overlay.leaders-on #entry { display: none !important; }
 .overlay.leaders-on .card-foot { display: none; }
 .overlay.leaders-on #board { display: block; }

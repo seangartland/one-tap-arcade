@@ -314,7 +314,7 @@
   }
   function hideLeaders() {
     if (!overlay) return;
-    overlay.classList.remove('leaders-on');
+    overlay.classList.remove('leaders-on', 'board-on');
     if (viewLeadersBtn) setTimeout(function () { viewLeadersBtn.focus({ preventScroll: true }); }, 120);
   }
 
@@ -365,7 +365,6 @@
         if (d && d.ok) {
           var best = (d.best != null ? d.best : finalScore);
           if (best > persistedBest) { persistedBest = best; refreshBestLine(); }
-          var key = u.username + '|' + best;
           var cached = boardCache || fetchBoard();
           return cached.then(function (scores) {
             var previous = 0;
@@ -377,7 +376,6 @@
             list.sort(function (a, b) { return b.score - a.score; });
             list = list.slice(0, 10);
             boardCache = Promise.resolve(list);
-            renderBoard(list, key);
             if (finalScore > previous) showToast('New best \u00b7 saved', colors.cyan);
           });
         }
@@ -440,7 +438,6 @@
           fetchBoard().then(function (scores) {
             if (!scores) return;
             noteUserBest(scores, u.username);
-            renderBoard(scores, null);
           });
         }
       } else if (pendingScore > 0) {
