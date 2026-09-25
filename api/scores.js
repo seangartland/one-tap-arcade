@@ -5,7 +5,7 @@
 
 const crypto = require('crypto');
 
-const GAMES = ['pulse', 'tower', 'breakout', 'lander', 'dodge', 'lanes', 'meteor'];
+const GAMES = ['pulse', 'tower', 'breakout', 'lander', 'dodge', 'lanes', 'meteor', 'pin', 'span'];
 const FILENAME = 'arcade-leaderboard.json';
 const MAX_ENTRIES = 10;
 const USER_RE = /^[A-Z0-9_]{3,12}$/;
@@ -21,6 +21,8 @@ const HIST_EDGES = {
   dodge:    [0, 5, 10, 15, 20, 30, 40, 50, 60, 75, 90, 110, 140, 180, Infinity],
   lanes:    [0, 5, 10, 15, 20, 28, 36, 46, 58, 72, 90, 115, 150, 200, Infinity],
   meteor:   [0, 5, 10, 15, 25, 35, 50, 65, 85, 110, 140, 180, 230, 300, Infinity],
+  pin:      [0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, Infinity],
+  span:     [0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, Infinity],
 };
 function histBin(score, game) {
   const edges = HIST_EDGES[game] || HIST_EDGES.pulse;
@@ -126,7 +128,7 @@ function cleanEntries(list) {
 
 /* Global leaderboard: sum of a user's best score per visible game, ranked.
    Breakout is hidden from the hub; its stored scores are kept but not counted. */
-const GLOBAL_GAMES = ['pulse', 'tower', 'lander', 'dodge', 'lanes', 'meteor'];
+const GLOBAL_GAMES = ['pulse', 'tower', 'lander', 'dodge', 'lanes', 'meteor', 'pin', 'span'];
 function globalBoard(users) {
   const rows = [];
   for (const name of Object.keys(users)) {

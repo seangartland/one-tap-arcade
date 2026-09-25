@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2305070f'/%3E%3Cpath d='M6 30 V12 M11 30 V12' stroke='%2301cdfe' stroke-width='2' opacity='.6'/%3E%3Cpath d='M6 16 H22' stroke='%23ffb300' stroke-width='2'/%3E%3Crect x='24' y='12' width='5' height='6' fill='%23ffb300'/%3E%3C/svg%3E" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#05070f" />
+  <title>Span - grow the beam and cross the gap</title>
+  <link rel="stylesheet" href="/shared/arcade.css" />
+  <style>
+    canvas { touch-action: none; }
+  </style>
+</head>
+<body class="game">
+  <main class="game" id="game">
+    <canvas id="canvas" tabindex="0" aria-label="Grow a beam between towers. Hold to extend it, release to tip it over the gap, then land on the next pillar."></canvas>
+    <div class="hud hud-center" aria-live="polite">
+      <div class="score-wrap">
+        <span class="score" id="score"></span>
+      </div>
+    </div>
+    <div class="toast" id="toast" aria-live="polite"></div>
+    <div class="hint">Hold to grow · release to tip</div>
+
+    <section class="overlay" id="overlay" aria-modal="true" role="dialog" aria-labelledby="title">
+      <div class="card">
+        <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M26 64 V18" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".5"/><path d="M36 64 V18 M36 48 H88" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M96 64 V30" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><rect x="94" y="16" width="14" height="10" rx="2" fill="currentColor"/></svg></div>
+        <div class="result-label">Run complete</div>
+        <h1 id="title">Span.</h1>
+        <p class="instruction" id="instruction">Hold to grow the beam. Release to tip it over the gap. Land on the next pillar.</p>
+        <p class="session-best" id="sessionBest">Session best · 0</p>
+        <p class="run-pct" id="runPct" hidden></p>
+        <div id="entry">
+          <div id="claimWrap">
+            <label for="username">Claim your username</label>
+            <div class="entry-row">
+              <input id="username" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Your username" />
+              <button id="claimBtn" class="claim" type="button">Claim</button>
+            </div>
+          </div>
+          <button class="linklike" id="skipSave" type="button">Skip</button>
+        </div>
+        <div id="board" aria-live="polite">
+          <h2>Span · Global leaders</h2>
+          <ol id="boardList"></ol>
+          <button class="linklike" id="boardBack" type="button">Back</button>
+        </div>
+        <button class="primary" id="start">Start growing</button>
+        <div class="card-foot"><button class="linklike" id="viewLeaders" type="button">Leaderboard</button></div>
+      </div>
+    </section>
+
+    <button class="sound" id="sound" type="button" aria-label="Mute sound" aria-pressed="true">
+      <svg class="on" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="M17 9.2c.7.7 1 1.6 1 2.8s-.3 2.1-1 2.8M19.5 6.8c1.4 1.4 2.1 3.1 2.1 5.2s-.7 3.8-2.1 5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <svg class="off" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="m17.5 9 4 4m0-4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+    <a class="home" href="../">Arcade</a>
+    <div class="grain" aria-hidden="true"></div>
+  </main>
+
+  <script>
+    window.ARCADE = {
+      game: 'span',
+      tagline: 'Hold to grow the beam. Release to tip it over the gap. Land on the next pillar.',
+      startLabel: 'Start growing',
+      restartLabel: 'Run it back',
+      resultLabel: 'Run complete',
+      boardHeading: 'Span · Global leaders'
+    };
+  </script>
+  <script src="/shared/arcade.js"></script>
+
+  <script>
+    'use strict';
+    const cv=document.getElementById('canvas'),cx=cv.getContext('2d');
+    const gameEl=Arcade.gameEl,scoreEl=document.getElementById('score');
+    const tone=Arcade.tone,colors=Arcade.colors;
+    const TWO=Math.PI*2;
+    const rand=Arcade.rand;
+    function rgb(c){const h=c.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)].join(',');}
+    let W=0,H=0,GY=0;
+    function resize(){
+      const d=Math.min(window.devicePixelRatio||1,2);
+      W=innerWidth;H=innerHeight;
+      cv.width=W*d;cv.height=H*d;
+      cx.setTransform(d,0,0,d,0,0);GY=H*.64;
+    }
+    addEventListener('resize',resize);
+    // grow hum (the one continuous sound with no tone() equivalent)
+    let hum=null;
+    function humOn(){
+      if(Arcade.isMuted())return;
+      const n=Arcade.audioNodes();if(!n)return;
+      const o=n.ctx.createOscillator(),g=n.ctx.createGain();
+      o.type='triangle';o.frequency.value=180;g.gain.setValueAtTime(0,n.ctx.currentTime);g.gain.linearRampToValueAtTime(.035,n.ctx.currentTime+.04);
+      o.connect(g);g.connect(n.out);o.start();hum={o,g};
+    }
+    function humSet(f){
+      if(!hum)return;
+      const n=Arcade.audioNodes();if(!n)return;
+      hum.o.frequency.setTargetAtTime(f,n.ctx.currentTime,.02);
+    }
+    function humOff(){
+      if(!hum)return;
+      const n=Arcade.audioNodes();if(!n){hum=null;return;}
+      const t=n.ctx.currentTime;
+      hum.g.gain.cancelScheduledValues(t);hum.g.gain.setValueAtTime(hum.g.gain.value,t);hum.g.gain.linearRampToValueAtTime(0,t+.05);
+      hum.o.stop(t+.07);hum=null;
+    }
+    // state
+    let pillars=[],beams=[],beam=null,cur=0,cam=0,camT=0,st='idle',score=0;
+    let px=0,py=0,pvy=0,target=0,fail=false,failT=0,shake=0,pops=[],bob=0,stars=[];
+    function newPillar(){
+      const p=pillars[pillars.length-1],hard=Math.min(score/25,1);
+      const w=rand(62-hard*26,110-hard*40);
+      let gap=rand(W*.1+hard*W*.06,W*.36+hard*W*.12);
+      gap=Math.min(gap,W*.66-w);
+      pillars.push({x:p.x+p.w+gap,w});
+    }
+    function reset(){
+      pillars=[{x:0,w:W*.3}];beams=[];beam=null;cur=0;score=0;fail=false;failT=0;pops=[];
+      newPillar();
+      cam=pillars[0].x+pillars[0].w-W*.3;camT=cam;
+      px=pillars[0].x+pillars[0].w-12;py=0;pvy=0;st='ready';
+      if(!stars.length)for(let i=0;i<60;i++)stars.push({x:rand(0,1),y:rand(0,1),s:rand(.5,1.6),d:rand(.1,.4)});
+    }
+    function checkPhase(){
+      Arcade.setPhase(Math.min(5,1+Math.floor(score/8)));
+    }
+    function startGame(){
+      Arcade.startFlow();humOff();Arcade.resetPhase();reset();gameEl.classList.add('playing');
+      scoreEl.textContent=score;
+      checkPhase();
+      tone(440,.12,'sine',.04,0);
+      cv.focus({preventScroll:true});
+    }
+    function end(){
+      st='over';humOff();gameEl.classList.remove('playing');
+      Arcade.gameOver({
+        score:score,
+        title:String(score),
+        instruction:score===0?'The gap won this time. Release the beam right above the pillar.':(score<8?'Nice crossing. The pillars spread apart fast.':'Clean strides. Keep the beam true?'),
+        restartLabel:'Run it back'
+      });
+    }
+    ARCADE.onStart=startGame;
+    ARCADE.onMute=function(m){if(m)humOff();};
+    ARCADE.onVisibility=function(){last=performance.now();};
+    function press(){
+      if(st!=='ready')return;
+      Arcade.initAudio();
+      const p=pillars[cur];beam={x:p.x+p.w,len:0,ang:-Math.PI/2,av:0};st='grow';humOn();
+    }
+    function release(){
+      if(st!=='grow')return;st='tip';humOff();tone(300,.06,'triangle',.03,0);
+    }
+    function update(dt){
+      bob+=dt;
+      cam+=(camT-cam)*Math.min(1,dt*6);
+      if(st==='grow'){
+        beam.len=Math.min(beam.len+(260+beam.len*.5)*dt,W*1.1);humSet(170+beam.len*2.2);
+      }else if(st==='tip'){
+        beam.av+=16*dt;beam.ang+=beam.av*dt;
+        if(beam.ang>=0){
+          beam.ang=0;shake=5;tone(90,.16,'sine',.09,0);
+          const n=pillars[cur+1],tip=beam.x+beam.len,tol=12;
+          fail=!(tip>=n.x-tol&&tip<=n.x+n.w+tol);
+          target=fail?tip:n.x+n.w-12;
+          st='walk';
+        }
+      }else if(st==='walk'){
+        px=Math.min(target,px+340*dt);
+        if(px>=target){
+          if(fail){st='drop';failT=0;pvy=0;beam.av=2;tone(260,.5,'sawtooth',.05,0);}
+          else{
+            score++;cur++;beams.push(beam);beam=null;
+            const n=pillars[cur];
+            pops.push({x:n.x+n.w/2,r:4,a:1});
+            tone(660,.08,'triangle',.05,0);tone(990,.12,'triangle',.045,.07);
+            newPillar();camT=n.x+n.w-W*.3;st='pan';
+            checkPhase();
+          }
+        }
+      }else if(st==='pan'){
+        if(Math.abs(camT-cam)<1.5){cam=camT;st='ready';}
+      }else if(st==='drop'){
+        failT+=dt;pvy+=1800*dt;py+=pvy*dt;
+        const n=pillars[cur+1];
+        if(beam.x+beam.len<n.x&&beam.ang<Math.PI/2){beam.av+=18*dt;beam.ang=Math.min(Math.PI/2,beam.ang+beam.av*dt);}
+        if(failT>.85)end();
+      }
+      for(const p of pops){p.r+=180*dt;p.a-=dt*2;}
+      pops=pops.filter(p=>p.a>0);
+    }
+    function glowLine(x0,y0,x1,y1,col,w){
+      cx.strokeStyle=col;cx.lineCap='round';
+      cx.globalAlpha=.22;cx.lineWidth=w*4;cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke();
+      cx.globalAlpha=1;cx.lineWidth=w;cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke();
+    }
+    function draw(){
+      const sx=shake?rand(-shake,shake):0,sy=shake?rand(-shake,shake)*.5:0;shake=Math.max(0,shake*.85-.1);
+      cx.fillStyle='#05070f';cx.fillRect(0,0,W,H);
+      const g=cx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,'rgba(1,60,90,.0)');g.addColorStop(.64,'rgba(1,90,130,.16)');g.addColorStop(1,'rgba(0,0,0,0)');
+      cx.fillStyle=g;cx.fillRect(0,0,W,H);
+      for(const s of stars){
+        const x=((s.x*W-cam*s.d)%W+W)%W;
+        cx.globalAlpha=.25+s.d;cx.fillStyle='#9be9ff';cx.fillRect(x,s.y*GY*.95,s.s,s.s);
+      }
+      cx.globalAlpha=1;
+      cx.save();cx.translate(-cam+sx,sy);
+      for(let i=0;i<pillars.length;i++){
+        const p=pillars[i];if(p.x-cam>W+20||p.x+p.w-cam<-20)continue;
+        cx.fillStyle='#0a1426';cx.fillRect(p.x,GY,p.w,H-GY);
+        cx.shadowColor=colors.cyan;cx.shadowBlur=14;glowLine(p.x,GY,p.x+p.w,GY,colors.cyan,2.5);cx.shadowBlur=0;
+        cx.strokeStyle='rgba('+rgb(colors.cyan)+',.25)';cx.lineWidth=1;
+        cx.beginPath();cx.moveTo(p.x+.5,GY);cx.lineTo(p.x+.5,H);cx.moveTo(p.x+p.w-.5,GY);cx.lineTo(p.x+p.w-.5,H);cx.stroke();
+      }
+      for(const b of beams)glowLine(b.x,GY,b.x+b.len,GY,'rgba('+rgb(colors.lime)+',.45)',2);
+      if(beam){
+        const ex=beam.x+Math.cos(beam.ang)*beam.len,ey=GY+Math.sin(beam.ang)*beam.len;
+        cx.shadowColor=st==='drop'?colors.coral:colors.lime;cx.shadowBlur=16;glowLine(beam.x,GY,ex,ey,st==='drop'?colors.coral:colors.lime,3);
+        cx.fillStyle='#fff';cx.beginPath();cx.arc(ex,ey,2.5,0,TWO);cx.fill();cx.shadowBlur=0;
+      }
+      for(const p of pops){cx.globalAlpha=p.a;cx.strokeStyle=colors.cyan;cx.lineWidth=2;cx.beginPath();cx.arc(p.x,GY,p.r,Math.PI,TWO);cx.stroke();}
+      cx.globalAlpha=1;
+      // runner
+      if(st!=='idle'){
+        const walking=st==='walk',hop=walking?Math.abs(Math.sin(bob*18))*3:0;
+        const x=px,y=GY+py-hop,sz=14;
+        cx.shadowColor=st==='drop'?colors.coral:colors.lime;cx.shadowBlur=18;
+        cx.fillStyle=st==='drop'?colors.coral:colors.lime;cx.fillRect(x-sz/2,y-sz-4,sz,sz+4);
+        cx.shadowBlur=0;cx.fillStyle='#05070f';cx.fillRect(x+1,y-sz+1,4,3);
+      }
+      cx.restore();
+    }
+    let last=performance.now();
+    function frame(t){
+      const dt=Math.min((t-last)/1000,.05);last=t;
+      update(dt);draw();
+      scoreEl.textContent=st==='idle'?'':score;
+      requestAnimationFrame(frame);
+    }
+    cv.addEventListener('touchstart',e=>{e.preventDefault();press();},{passive:false});
+    cv.addEventListener('touchend',e=>{e.preventDefault();release();},{passive:false});
+    cv.addEventListener('touchcancel',e=>{e.preventDefault();release();},{passive:false});
+    cv.addEventListener('mousedown',e=>{e.preventDefault();press();});
+    addEventListener('mouseup',release);
+    cv.addEventListener('contextmenu',e=>e.preventDefault());
+    resize();reset();st='idle';
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
