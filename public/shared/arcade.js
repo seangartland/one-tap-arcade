@@ -37,12 +37,68 @@
     for (var i = 0; i < hist.length; i++) t += hist[i];
     return t;
   }
-  function histMax(hist, edges) {
+  /* Display window for a histogram, derived from the distribution itself
+     rather than fixed point values: show buckets 0 through the bucket
+     holding the 99th percentile (never past the highest occupied bucket),
+     so no game renders blank trailing bars just because its fixed edges
+     run higher than anyone has scored. Same rule for every game.
+     Returns {last, xMax} or null when the histogram is empty. */
+  function histView(hist, edges) {
     edges = edges || HIST_EDGES;
+    var total = histTotal(hist);
+    if (!total) return null;
+    var dataLast = 0;
     for (var i = hist.length - 1; i >= 0; i--) {
-      if (hist[i] > 0) return i === hist.length - 1 ? 1000 : edges[i];
+      if (hist[i] > 0) { dataLast = i; break; }
     }
-    return 0;
+    /* Bucket holding the 99th percentile: walk cumulative counts to the
+       rank .99 * (total - 1), no interpolation, so a lone run's own bucket
+       is always the cap. */
+    var rank = .99 * (total - 1), cum = 0, cap = 0;
+    for (var j = 0; j < hist.length; j++) {
+      if (cum + hist[j] > rank) { cap = j; break; }
+      cum += hist[j];
+    }
+    var last = Math.min(dataLast, cap);
+    return { last: last, xMax: last === hist.length - 1 ? 1000 : edges[last] };
+  }
+  /* 0..1 position of a score on the histogram strip: the bar row is
+     divided evenly across the displayed buckets, so a score starts at its
+     bucket and interpolates between that bucket's edges. The last
+     (Infinity) bucket is capped at 1000 for scaling, xMax clamps the score
+     so markers never run off the right edge, and buckets is the number of
+     buckets actually drawn (defaults to all of them). */
+  function scorePos(score, xMax, edges, buckets) {
+    edges = edges || HIST_EDGES;
+    buckets = buckets || edges.length;
+    if (!isFinite(score)) score = 1000;
+    if (score < 0) score = 0;
+    if (xMax > 0 && score > xMax) score = xMax;
+    var i = 0;
+    while (i < edges.length && score > edges[i]) i++;
+    if (i >= edges.length) i = edges.length - 1;
+    var lo = i === 0 ? 0 : edges[i - 1];
+    var hi = i === edges.length - 1 ? 1000 : edges[i];
+    var f = hi > lo ? (score - lo) / (hi - lo) : 0;
+    if (f > 1) f = 1;
+    var pos = (i + f) / buckets;
+    return pos > 1 ? 1 : pos;
+  }
+  /* Bar spans for a histogram: height % of the peak bucket, empty buckets
+     draw nothing (height 0%) so the distribution is not overstated, while
+     tiny nonzero buckets keep a 10% floor so they stay visible. Only
+     buckets 0..last are drawn; last defaults to every bucket. */
+  function distBarsHTML(hist, last) {
+    if (last == null) last = hist.length - 1;
+    var peak = 0;
+    for (var i = 0; i <= last; i++) if (hist[i] > peak) peak = hist[i];
+    if (!peak) peak = 1;
+    var html = '';
+    for (var j = 0; j <= last; j++) {
+      var pct = hist[j] > 0 ? Math.max(10, Math.round(hist[j] / peak * 100)) : 0;
+      html += '<span class="dist-bar" style="height:' + pct + '%"></span>';
+    }
+    return html;
   }
   /* p-th percentile of a count histogram. Walk cumulative counts to the
      bucket holding rank p * (total - 1), then interpolate linearly inside
@@ -66,40 +122,6 @@
     var loLast = edges[edges.length - 2];
     return Math.round(loLast + (1000 - loLast) * Math.min(1, (rank - cum) / Math.max(1, hist[hist.length - 1])));
   }
-  /* 0..1 position of a score on the histogram strip: the bar row is
-     divided evenly across buckets, so a score starts at its bucket and
-     interpolates between that bucket's edges. The last (Infinity) bucket
-     is capped at 1000 for scaling, and xMax clamps the score so markers
-     never run off the right edge. */
-  function scorePos(score, xMax, edges) {
-    edges = edges || HIST_EDGES;
-    if (!isFinite(score)) score = 1000;
-    if (score < 0) score = 0;
-    if (xMax > 0 && score > xMax) score = xMax;
-    var i = 0;
-    while (i < edges.length && score > edges[i]) i++;
-    if (i >= edges.length) i = edges.length - 1;
-    var lo = i === 0 ? 0 : edges[i - 1];
-    var hi = i === edges.length - 1 ? 1000 : edges[i];
-    var f = hi > lo ? (score - lo) / (hi - lo) : 0;
-    if (f > 1) f = 1;
-    return (i + f) / edges.length;
-  }
-  /* Bar spans for a histogram: height % of the peak bucket, empty buckets
-     draw nothing (height 0%) so the distribution is not overstated, while
-     tiny nonzero buckets keep a 10% floor so they stay visible. */
-  function distBarsHTML(hist) {
-    var peak = 0;
-    for (var i = 0; i < hist.length; i++) if (hist[i] > peak) peak = hist[i];
-    if (!peak) peak = 1;
-    var html = '';
-    for (var j = 0; j < hist.length; j++) {
-      var pct = hist[j] > 0 ? Math.max(10, Math.round(hist[j] / peak * 100)) : 0;
-      html += '<span class="dist-bar" style="height:' + pct + '%"></span>';
-    }
-    return html;
-  }
-
   /* ---------- username accounts ---------- */
   /* The browser keeps {username, token} under "arcade-user". The server
      stores only the SHA-256 hash of the token, never the token itself. */
@@ -608,8 +630,9 @@
       if (boardStats && boardStats.hist && histTotal(boardStats.hist) > 0) {
         var bars = host.querySelector('.run-dist-bars');
         var mark = host.querySelector('.run-dist-mark');
-        bars.innerHTML = distBarsHTML(boardStats.hist);
-        mark.style.left = (scorePos(score, Math.max(histMax(boardStats.hist, boardStats.edges), score), boardStats.edges) * 100) + '%';
+        var view = histView(boardStats.hist, boardStats.edges);
+        bars.innerHTML = distBarsHTML(boardStats.hist, view.last);
+        mark.style.left = (scorePos(score, Math.max(view.xMax, score), boardStats.edges, view.last + 1) * 100) + '%';
         host.setAttribute('aria-label', 'Your score ' + score + ' in the distribution of ' + (boardStats.runs || histTotal(boardStats.hist)) + ' runs');
         host.hidden = false;
       }
@@ -773,11 +796,11 @@
       } catch (e) {}
       return 0;
     }
-    function renderDistVals(dist, hist, best, edges) {
+    function renderDistVals(dist, hist, best, edges, view) {
       var v25 = histPctile(hist, .25, edges);
       var v50 = histPctile(hist, .5, edges);
       var v75 = histPctile(hist, .75, edges);
-      var vMax = histMax(hist, edges);
+      var vMax = view.xMax;
       dist.setAttribute('aria-label', 'Score distribution: 25th ' + v25.toLocaleString('en-US') + ', median ' + v50.toLocaleString('en-US') + ', 75th ' + v75.toLocaleString('en-US') + ', max ' + vMax.toLocaleString('en-US'));
     }
     function paint(gameKey) {
@@ -803,11 +826,12 @@
         }
         return;
       }
-      bars.innerHTML = distBarsHTML(hist);
-      renderDistVals(dist, hist, best, edges);
+      var view = histView(hist, edges);
+      bars.innerHTML = distBarsHTML(hist, view.last);
+      renderDistVals(dist, hist, best, edges, view);
       dist.hidden = false;
       if (best && best > 0) {
-        mark.style.left = (scorePos(best, Math.max(histMax(hist, edges), best), edges) * 100) + '%';
+        mark.style.left = (scorePos(best, Math.max(view.xMax, best), edges, view.last + 1) * 100) + '%';
         mark.hidden = false;
       } else {
         mark.hidden = true;
