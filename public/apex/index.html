@@ -31,7 +31,7 @@ main.game{background:#03050c!important;min-height:0}main.game::before{display:no
 'use strict';
 const cv=document.getElementById('canvas'),cx=cv.getContext('2d');
 const scoreEl=document.getElementById('score'),safeEl=document.getElementById('safe');
-const TWO=Math.PI*2,STEP=8,HW=26,G=2300,VMIN=150,VMIN2=VMIN*VMIN,ACC=420,BRK=620,GAPMAX=600,SCRAPE=900,TRAIL_T=.42;
+const TWO=Math.PI*2,STEP=8,HW=26,G=2300,VMIN=150,VMIN2=VMIN*VMIN,ACC=420,BRK=620,GAPMAX=600,SCRAPE=550,TRAIL_T=.42;
 const C_CYAN=[1,205,250],C_ICE=[170,245,255],C_AMB=[255,179,0],C_WHT=[255,255,255],C_MAG=[255,43,214],C_PINK=[255,140,235];
 const rand=(a,b)=>a+Math.random()*(b-a),lerp=(a,b,t)=>a+(b-a)*t,clamp=(x,a,b)=>x<a?a:x>b?b:x;
 const rgba=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')';
@@ -220,7 +220,7 @@ function wallHit(){
 function scrapeHit(){
   const c=slide.c,side=-c.dir;
   slide.d=side*(HW-5);slide.lv=0;
-  v*=.45;
+  v*=.4;
   mode='play';slide=null;slowT=0;
   shake=Math.max(shake,7);flash=.22;flashC=C_AMB;
   sampleAt(carS,_a);
