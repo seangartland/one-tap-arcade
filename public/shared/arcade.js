@@ -204,8 +204,49 @@
     colors.lime = cssVar('--lime');
   }
   refreshColors();
+
+  /* ---------- phases ---------- */
+  var currentPhase = 0;
+  /* All six games are Tron theme, dark-only: their local schemeMQ was a
+     stub with matches:true, so the phase trio is always the dark palette. */
+  var PHASES = [
+    { name: 'Daybreak',
+      light: { cyan: '#087f8c', coral: '#e95d45', lime: '#bbda45' },
+      dark:  { cyan: '#4bc7cf', coral: '#ff765f', lime: '#cde85a' } },
+    { name: 'Dusk',
+      light: { cyan: '#5a4fcf', coral: '#e8933c', lime: '#2fa37c' },
+      dark:  { cyan: '#9a8ff5', coral: '#f2b25c', lime: '#57d6a0' } },
+    { name: 'Ember',
+      light: { cyan: '#9a3412', coral: '#dc2626', lime: '#d97706' },
+      dark:  { cyan: '#fb923c', coral: '#f87171', lime: '#fbbf24' } },
+    { name: 'Tide',
+      light: { cyan: '#0e7490', coral: '#2563eb', lime: '#0d9e6f' },
+      dark:  { cyan: '#22d3ee', coral: '#60a5fa', lime: '#34d399' } },
+    { name: 'Noir',
+      light: { cyan: '#52525b', coral: '#db2777', lime: '#a3a3a3' },
+      dark:  { cyan: '#a1a1aa', coral: '#f472b6', lime: '#d4d4d8' } }
+  ];
+  function applyPhaseVars(n) {
+    var trio = PHASES[n - 1].dark;
+    var root = document.documentElement.style;
+    root.setProperty('--cyan', trio.cyan);
+    root.setProperty('--coral', trio.coral);
+    root.setProperty('--lime', trio.lime);
+    refreshColors();
+  }
+  function setPhase(n, silent) {
+    if (n === currentPhase) return false;
+    currentPhase = n;
+    applyPhaseVars(n);
+    if (n > 1 && !silent) showToast(PHASES[n - 1].name, colors.cyan);
+    return true;
+  }
+  function phase() { return currentPhase; }
+  function resetPhase() { currentPhase = 0; }
+  function rand(min, max) { return min + Math.random() * (max - min); }
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
     if (typeof cfg.onSchemeChange === 'function') cfg.onSchemeChange();
+    else if (currentPhase) applyPhaseVars(currentPhase);
     else refreshColors();
   });
 
@@ -521,6 +562,11 @@
   window.Arcade = {
     game: game,
     colors: colors,
+    PHASES: PHASES,
+    setPhase: setPhase,
+    phase: phase,
+    resetPhase: resetPhase,
+    rand: rand,
     canvas: canvas,
     gameEl: gameEl,
     cssVar: cssVar,
