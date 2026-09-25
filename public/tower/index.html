@@ -274,22 +274,6 @@
         ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 1.4; ctx.stroke(p);
       }
 
-      // amber marker at the centre of the projected landing slot
-      function landingGates() {
-        var prev = stack[stack.length - 1];
-        var m = mover;
-        var left = Math.max(m.x, prev.x);
-        var right = Math.min(m.x + m.w, prev.x + prev.w);
-        if (right - left <= 0) { left = prev.x; right = prev.x + prev.w; }
-        var yt = stackTop() - bh;
-        var x0 = left + 1, x1 = right - 1;
-        ctx.fillStyle = rgba(C_AMB, .95);
-        ctx.beginPath(); ctx.arc((x0 + x1) / 2, yt + bh / 2, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = rgba(C_AMB, .25);
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc((x0 + x1) / 2, yt + bh / 2, 6.5, 0, Math.PI * 2); ctx.stroke();
-      }
-
       function update(dt) {
         if (state === 'playing' && mover) {
           mover.x += mover.dir * speed * dt;
@@ -364,7 +348,6 @@
         ctx.translate(0, -cam);
         drawGrid();
         drawFloor();
-        if (mover && (state === 'playing' || state === 'dropping')) landingGates();
         var i, b, y;
         for (i = 0; i < stack.length; i++) {
           b = stack[i]; y = -(i + 1) * bh;
