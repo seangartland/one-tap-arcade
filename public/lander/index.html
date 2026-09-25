@@ -68,7 +68,7 @@
       var thrustGain = null;
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      var GRAVITY0 = 300, THRUST = 780, SAFE_V = 105, MAX_V = 420;
+      var GRAVITY0 = 300, THRUST = 780, SAFE_V = 140, MAX_V = 420;
       var gravity = GRAVITY0;
       var thrusting = false;
       var lander = { x: 0, y: 0, vy: 0 };
@@ -207,9 +207,9 @@
       }
       function touchdown() {
         var dx = Math.abs(lander.x - pad.x);
-        var softBonus = Math.round((1 - Math.max(0, lander.vy) / SAFE_V) * 20);
-        var centerBonus = Math.round((1 - Math.min(1, dx / (pad.w / 2))) * 10);
-        var pts = 20 + Math.max(0, softBonus) + Math.max(0, centerBonus);
+        var softBonus = Math.round((1 - Math.max(0, lander.vy) / SAFE_V) * 12);
+        var centerBonus = Math.round((1 - Math.min(1, dx / (pad.w / 2))) * 8);
+        var pts = 15 + Math.max(0, softBonus) + Math.max(0, centerBonus);
         score += pts;
         setScore();
         showToast('Touchdown +' + pts, colors.cyan);
