@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>PRISM</title>
+<style>
+html,body{margin:0;height:100%;background:#05070f;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body{position:fixed;inset:0}
+canvas{position:fixed;inset:0;display:block;touch-action:none}
+#hud{position:fixed;top:max(16px,env(safe-area-inset-top));left:max(16px,env(safe-area-inset-left));font-family:"DM Mono",ui-monospace,Menlo,Consolas,monospace;z-index:5;pointer-events:none}
+#hud .score{font-size:36px;font-weight:700;color:#d8fbff;text-shadow:0 0 14px rgba(1,205,250,.55),0 0 44px rgba(1,205,250,.25)}
+#hud .best{font-size:11px;letter-spacing:2px;color:#ffcf66;text-shadow:0 0 10px rgba(255,179,0,.5);margin-top:2px}
+#ov{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:"DM Mono",ui-monospace,Menlo,Consolas,monospace;background:radial-gradient(ellipse at center,rgba(5,7,15,.2) 0%,rgba(5,7,15,.92) 100%)}
+#ov.hide{display:none}
+#ov h1{font-size:min(74px,15vw);margin:0;letter-spacing:14px;padding-left:14px;color:#d8fbff;text-shadow:0 0 20px rgba(1,205,250,.85),0 0 70px rgba(1,205,250,.45)}
+#ov .how{margin:18px 26px 0;font-size:14px;line-height:1.7;color:#9be9ff;text-shadow:0 0 8px rgba(1,205,250,.35);min-height:24px}
+#ov .go{margin-top:36px;font-size:11px;letter-spacing:4px;color:#ffe0a0;text-shadow:0 0 12px rgba(255,179,0,.9);animation:pu 1.5s infinite}
+@keyframes pu{0%,100%{opacity:.3}55%{opacity:1}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><div class="score" id="score">0</div><div class="best" id="best"></div></div>
+<div id="ov">
+<h1 id="ovTitle">PRISM</h1>
+<div class="how" id="ovHow"></div>
+<div class="go" id="ovGo">TAP TO START</div>
+</div>
+<script>
+'use strict';
+const cv=document.getElementById('c'),cx=cv.getContext('2d');
+const ov=document.getElementById('ov'),ovTitle=document.getElementById('ovTitle'),ovHow=document.getElementById('ovHow'),ovGo=document.getElementById('ovGo');
+const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best');
+const TWO=Math.PI*2;
+// each color also has its own shape so it reads without color vision
+const COLS=[{c:'#01cdfa',rgb:'1,205,250',f:620,sides:4,rot:0},{c:'#ff5a6e',rgb:'255,90,110',f:740,sides:3,rot:-Math.PI/2},{c:'#ffb300',rgb:'255,179,0',f:880,sides:6,rot:0}];
+const rand=(a,b)=>a+Math.random()*(b-a);
+let W=0,H=0,LY=0,RR=34;
+function resize(){
+  const d=Math.min(window.devicePixelRatio||1,2);
+  W=innerWidth;H=innerHeight;
+  cv.width=W*d;cv.height=H*d;cv.style.width=W+'px';cv.style.height=H+'px';
+  cx.setTransform(d,0,0,d,0,0);
+  LY=H*.8;RR=Math.max(28,Math.min(44,W*.09));
+}
+addEventListener('resize',resize);
+let ac=null;
+function blip(f,d,type,vol,slide){
+  if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return;}}
+  if(ac.state==='suspended')ac.resume();
+  const t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();
+  o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+  if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
+  g.gain.setValueAtTime(vol||.06,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+d+.02);
+}
+let shards=[],parts=[],cracks=[],col=0,snap=0,score=0,lives=3,el=0,running=false;
+let best=+(localStorage.getItem('prism.best')||0),red=0,shake=0,ringPop=0;
+function speed(){return Math.min(150+el*3,380);}
+function gap(){return Math.max(130,210-el*1.2);}
+function reset(){shards=[];parts=[];cracks=[];col=0;snap=0;score=0;lives=3;el=0;red=0;shake=0;ringPop=0;}
+function start(){reset();running=true;ov.classList.add('hide');blip(440,.12,'sine',.04,880);}
+function end(){
+  running=false;best=Math.max(best,score);localStorage.setItem('prism.best',best);
+  ovTitle.textContent='GAME OVER';ovHow.textContent='score '+score+' · best '+best;ovGo.textContent='TAP TO RETRY';
+  ov.classList.remove('hide');
+}
+function tap(){if(!running)return;col=(col+1)%3;snap=1;blip(COLS[col].f,.05,'square',.025);}
+function spawn(){
+  // bias toward repeating the previous color so runs are readable, not a coin flip every shard
+  const prev=shards.length?shards[shards.length-1].k:Math.floor(Math.random()*3);
+  const k=Math.random()<.35?prev:Math.floor(Math.random()*3);
+  shards.push({x:rand(W*.14,W*.86),y:-30,k,spin:rand(0,TWO),vs:rand(-2,2)});
+}
+function burst(x,y,k,n,sp){for(let i=0;i<n;i++){const a=rand(0,TWO),v=rand(sp*.4,sp);parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-60,a:1,k});}}
+function crack(){
+  const pts=[],a=rand(0,TWO);let r=RR*.25;
+  pts.push([Math.cos(a)*r,Math.sin(a)*r]);
+  for(let i=0;i<4;i++){r+=RR*.22;const b=a+rand(-.45,.45);pts.push([Math.cos(b)*r,Math.sin(b)*r]);}
+  cracks.push(pts);
+}
+function update(dt){
+  if(!running)return;
+  el+=dt;
+  const v=speed();
+  const top=shards.length?shards[shards.length-1].y:1e9;
+  if(top>gap()-30)spawn();
+  for(const s of shards){
+    s.y+=v*dt;s.spin+=s.vs*dt;
+    if(!s.done&&s.y>=LY){
+      s.done=1;
+      if(s.k===col){score++;ringPop=1;burst(s.x,LY,s.k,14,260);blip(COLS[s.k].f*1.5,.09,'triangle',.05,COLS[s.k].f*2);}
+      else{
+        lives--;red=1;shake=10;crack();burst(s.x,LY,s.k,8,140);blip(120,.3,'sawtooth',.07,60);
+        if(lives<=0){end();}
+      }
+    }
+  }
+  shards=shards.filter(s=>!s.done);
+  for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=500*dt;p.a-=dt*1.8;}
+  parts=parts.filter(p=>p.a>0);
+}
+function poly(x,y,r,k,rot){
+  const c=COLS[k];cx.beginPath();
+  for(let i=0;i<c.sides;i++){const a=rot+c.rot+i*TWO/c.sides;const px=x+Math.cos(a)*r,py=y+Math.sin(a)*r;i?cx.lineTo(px,py):cx.moveTo(px,py);}
+  cx.closePath();
+}
+function draw(){
+  const sx=shake?rand(-shake,shake):0,sy=shake?rand(-shake,shake):0;shake=Math.max(0,shake*.86-.1);
+  cx.fillStyle='#05070f';cx.fillRect(0,0,W,H);
+  const c=COLS[col];
+  const g=cx.createRadialGradient(W/2,LY,0,W/2,LY,H*.8);
+  g.addColorStop(0,'rgba('+c.rgb+',.14)');g.addColorStop(1,'rgba(0,0,0,0)');
+  cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  cx.save();cx.translate(sx,sy);
+  // ring line
+  cx.strokeStyle=c.c;cx.globalAlpha=.2;cx.lineWidth=8;cx.beginPath();cx.moveTo(0,LY);cx.lineTo(W,LY);cx.stroke();
+  cx.globalAlpha=.9;cx.lineWidth=1.5;cx.beginPath();cx.moveTo(0,LY);cx.lineTo(W/2-RR-6,LY);cx.moveTo(W/2+RR+6,LY);cx.lineTo(W,LY);cx.stroke();
+  cx.globalAlpha=1;
+  // shards
+  for(const s of shards){
+    const k=COLS[s.k],r=13;
+    cx.shadowColor=k.c;cx.shadowBlur=18;
+    cx.fillStyle='rgba('+k.rgb+',.25)';poly(s.x,s.y,r,s.k,s.spin);cx.fill();
+    cx.strokeStyle=k.c;cx.lineWidth=2.5;cx.stroke();cx.shadowBlur=0;
+    cx.globalAlpha=.18;cx.strokeStyle=k.c;cx.lineWidth=2;cx.beginPath();cx.moveTo(s.x,s.y-r-2);cx.lineTo(s.x,s.y-r-26);cx.stroke();cx.globalAlpha=1;
+  }
+  // ring
+  snap=Math.max(0,snap-.09);ringPop=Math.max(0,ringPop-.06);
+  const rr=RR*(1+snap*.22+ringPop*.1);
+  cx.shadowColor=c.c;cx.shadowBlur=26+ringPop*30;
+  cx.fillStyle='#071322';cx.beginPath();cx.arc(W/2,LY,rr,0,TWO);cx.fill();
+  cx.strokeStyle=c.c;cx.lineWidth=4;cx.beginPath();cx.arc(W/2,LY,rr,0,TWO);cx.stroke();cx.shadowBlur=0;
+  cx.fillStyle='rgba('+c.rgb+',.35)';poly(W/2,LY,rr*.42,col,0);cx.fill();cx.strokeStyle=c.c;cx.lineWidth=2;cx.stroke();
+  if(ringPop>0){cx.globalAlpha=ringPop;cx.strokeStyle='#fff';cx.lineWidth=2;cx.beginPath();cx.arc(W/2,LY,rr+(1-ringPop)*40,0,TWO);cx.stroke();cx.globalAlpha=1;}
+  // cracks on ring
+  cx.strokeStyle='rgba(255,90,110,.9)';cx.lineWidth=1.5;
+  for(const p of cracks){cx.beginPath();p.forEach((q,i)=>{const x=W/2+q[0]*rr/RR,y=LY+q[1]*rr/RR;i?cx.lineTo(x,y):cx.moveTo(x,y);});cx.stroke();}
+  // lives pips under the ring
+  for(let i=0;i<3;i++){
+    const x=W/2+(i-1)*18,y=LY+rr+26;
+    cx.beginPath();cx.arc(x,y,4,0,TWO);
+    if(i<lives){cx.fillStyle=c.c;cx.fill();}else{cx.strokeStyle='rgba(255,90,110,.7)';cx.lineWidth=1.5;cx.stroke();}
+  }
+  for(const p of parts){cx.globalAlpha=p.a;cx.fillStyle=COLS[p.k].c;cx.fillRect(p.x-2,p.y-2,4,4);}
+  cx.globalAlpha=1;
+  cx.restore();
+  if(red>0){cx.fillStyle='rgba(255,40,60,'+(red*.28)+')';cx.fillRect(0,0,W,H);red=Math.max(0,red-.05);}
+}
+let last=performance.now();
+function frame(t){
+  const dt=Math.min((t-last)/1000,.05);last=t;
+  update(dt);draw();
+  scoreEl.textContent=score;bestEl.textContent='BEST '+Math.max(best,score);
+  requestAnimationFrame(frame);
+}
+cv.addEventListener('touchstart',e=>{e.preventDefault();tap();},{passive:false});
+cv.addEventListener('mousedown',e=>{e.preventDefault();tap();});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+function onOv(e){e.preventDefault();start();}
+ov.addEventListener('touchstart',onOv,{passive:false});
+ov.addEventListener('mousedown',onOv);
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
