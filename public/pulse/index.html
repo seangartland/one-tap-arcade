@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#05070f" />
   <title>Pulse - a one-tap orbit game</title>
   <link rel="stylesheet" href="/shared/arcade.css" />
+  <style>.mark:has(svg) svg { filter: none; }</style>
 </head>
 <body class="game">
   <main class="game" id="game">
@@ -24,7 +25,7 @@
     <div class="hint">Tap anywhere · Space</div>
 
     <section class="overlay" id="overlay" aria-modal="true" role="dialog" aria-labelledby="title">
-      <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><circle cx="60" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="4" opacity=".35"/><path d="M49 15 A22 22 0 0 1 71 15" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="82" cy="34" r="4" fill="currentColor"/></svg></div>
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><circle cx="60" cy="34" r="22" fill="none" stroke="rgba(4,8,20,.85)" stroke-width="11"/><circle cx="60" cy="34" r="16.5" fill="none" stroke="rgba(170,245,255,.07)" stroke-width="6"/><circle cx="60" cy="34" r="16.5" fill="none" stroke="rgba(170,245,255,.2)" stroke-width="3"/><circle cx="60" cy="34" r="16.5" fill="none" stroke="#aaf5ff" stroke-width="1.5"/><circle cx="60" cy="34" r="27.5" fill="none" stroke="rgba(170,245,255,.07)" stroke-width="6"/><circle cx="60" cy="34" r="27.5" fill="none" stroke="rgba(170,245,255,.2)" stroke-width="3"/><circle cx="60" cy="34" r="27.5" fill="none" stroke="#aaf5ff" stroke-width="1.5"/><path d="M72.8 16.1 A22 22 0 0 1 72.8 51.9" fill="none" stroke="rgba(255,209,102,.07)" stroke-width="14"/><path d="M72.8 16.1 A22 22 0 0 1 72.8 51.9" fill="none" stroke="rgba(255,209,102,.2)" stroke-width="8"/><path d="M72.8 16.1 A22 22 0 0 1 72.8 51.9" fill="none" stroke="rgba(255,209,102,.55)" stroke-width="5.5" stroke-dasharray="1 4" stroke-linecap="round"/><path d="M72.8 16.1 A22 22 0 0 1 72.8 51.9" fill="none" stroke="#ffd166" stroke-width="2.8"/><circle cx="82" cy="34" r="7" fill="rgba(255,209,102,.16)"/><circle cx="82" cy="34" r="3" fill="#ffd166"/><path d="M46.18 16.88 A22 22 0 0 1 56.08 12.35" fill="none" stroke="rgba(170,245,255,.08)" stroke-width="2.4" stroke-linecap="round"/><path d="M56.08 12.35 A22 22 0 0 1 64.16 12.4" fill="none" stroke="rgba(170,245,255,.22)" stroke-width="3.4" stroke-linecap="round"/><path d="M64.16 12.4 A22 22 0 0 1 68.98 13.91" fill="none" stroke="rgba(170,245,255,.65)" stroke-width="5" stroke-linecap="round"/><circle cx="69" cy="13.9" r="6.5" fill="rgba(170,245,255,.14)"/><circle cx="69" cy="13.9" r="4.4" fill="rgba(170,245,255,.4)"/><circle cx="69" cy="13.9" r="2.4" fill="#f4fdff"/></svg></div>
     </section>
   </main>
 
@@ -53,7 +54,11 @@
       var livesLabel = document.querySelector('.lives');
       var tone = Arcade.tone;
       var showToast = Arcade.showToast;
-      var colors = Arcade.colors;
+      var C_CYAN = '#aaf5ff';
+      var C_AMBER = '#ffd166';
+      var C_MAGENTA = '#ff5fa2';
+      var C_WHITE = '#f4fdff';
+      var C_MUTED = '#66879f';
 
 
       var state = 'ready';
@@ -69,6 +74,7 @@
       var particles = [];
       var rings = [];
       var flash = 0;
+      var flashColor = C_AMBER;
       var shake = 0;
       var targetWidth = .68;
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -161,16 +167,17 @@
           direction *= -1;
           var x = cx + Math.cos(angle) * radius;
           var y = cy + Math.sin(angle) * radius;
-          burst(x, y, perfect ? colors.lime : colors.cyan, perfect ? 18 : 11);
-          rings.push({x:x,y:y,r:9,life:1,color:perfect?colors.lime:colors.cyan});
+          burst(x, y, perfect ? C_WHITE : C_AMBER, perfect ? 18 : 11);
+          rings.push({x:x,y:y,r:9,life:1,color:perfect?C_WHITE:C_AMBER});
           flash = perfect ? .32 : .16;
+          flashColor = perfect ? C_WHITE : C_AMBER;
           hitSound(perfect);
-          showToast(perfect ? 'Perfect +'+(2*multi) : 'Hit +'+multi, perfect ? colors.coral : colors.cyan);
+          showToast(perfect ? 'Perfect +'+(2*multi) : 'Hit +'+multi, perfect ? C_WHITE : C_AMBER);
           newTarget(); setScore();
         } else {
           lives--; streak = 0; speed = Math.max(2.0, speed - .16); shake = reduced ? 0 : 9;
-          missSound(); showToast('Miss', colors.coral); setScore(); setLives();
-          burst(cx + Math.cos(angle)*radius, cy + Math.sin(angle)*radius, colors.coral, 8);
+          missSound(); showToast('Miss', C_MAGENTA); setScore(); setLives();
+          burst(cx + Math.cos(angle)*radius, cy + Math.sin(angle)*radius, C_MAGENTA, 8);
           if (lives <= 0) setTimeout(endGame, 280);
         }
       }
@@ -182,61 +189,130 @@
         if ((e.code === 'Space' || e.code === 'Enter') && state === 'playing') { e.preventDefault(); attempt(); }
       });
 
-      function roundedArc(context, x, y, r, start, end, width, color) {
-        context.beginPath(); context.arc(x,y,r,start,end); context.strokeStyle=color; context.lineWidth=width; context.lineCap='round'; context.stroke();
+      function strokeArc(context, x, y, r, a0, a1, width, color, alpha, ccw) {
+        context.lineCap = 'round';
+        context.globalAlpha = alpha;
+        context.strokeStyle = color;
+        context.lineWidth = width;
+        context.beginPath(); context.arc(x, y, r, a0, a1, !!ccw); context.stroke();
+        context.globalAlpha = 1;
+      }
+      function glowArc(context, x, y, r, a0, a1, core, haloW, midW, coreW) {
+        context.lineCap = 'round';
+        var passes = [[haloW, .07], [midW, .2]];
+        for (var p = 0; p < passes.length; p++) {
+          context.globalAlpha = passes[p][1];
+          context.strokeStyle = core;
+          context.lineWidth = passes[p][0];
+          context.beginPath(); context.arc(x, y, r, a0, a1); context.stroke();
+        }
+        context.globalAlpha = 1;
+        context.strokeStyle = core;
+        context.lineWidth = coreW;
+        context.beginPath(); context.arc(x, y, r, a0, a1); context.stroke();
       }
       function drawBackground(t) {
-        ctx.clearRect(0,0,W,H);
+        ctx.clearRect(-16, -16, W + 32, H + 32);
         ctx.save();
-        ctx.translate(shake ? rand(-shake,shake) : 0, shake ? rand(-shake,shake) : 0);
+        ctx.translate(shake ? rand(-shake, shake) : 0, shake ? rand(-shake, shake) : 0);
 
-        // ghost orbit
-        ctx.beginPath(); ctx.arc(cx,cy,radius,0,Math.PI*2);
-        ctx.strokeStyle = colors.line; ctx.lineWidth = 1.25; ctx.stroke();
+        // deep navy radial gradient background
+        var bgR = Math.max(W, H) * .72;
+        var sky = ctx.createRadialGradient(cx, cy, 0, cx, cy, bgR);
+        sky.addColorStop(0, '#0a1634');
+        sky.addColorStop(.55, '#050a1a');
+        sky.addColorStop(1, '#020308');
+        ctx.fillStyle = sky;
+        ctx.fillRect(-bgR, -bgR, W + bgR * 2, H + bgR * 2);
 
-        // small orbit ticks
-        for (var i=0;i<12;i++) {
-          var a=i*Math.PI/6;
-          var x1=cx+Math.cos(a)*(radius-4), y1=cy+Math.sin(a)*(radius-4);
-          var x2=cx+Math.cos(a)*(radius+4), y2=cy+Math.sin(a)*(radius+4);
-          ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.strokeStyle=colors.line; ctx.lineWidth=1; ctx.stroke();
+        // faint blue grid, one brighter major line each way
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(120,170,230,.05)';
+        ctx.beginPath();
+        for (var gx = Math.ceil(-16 / 34) * 34; gx <= W + 16; gx += 34) { ctx.moveTo(gx, -16); ctx.lineTo(gx, H + 16); }
+        for (var gy = Math.ceil(-16 / 34) * 34; gy <= H + 16; gy += 34) { ctx.moveTo(-16, gy); ctx.lineTo(W + 16, gy); }
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx, -16); ctx.lineTo(cx, H + 16);
+        ctx.moveTo(-16, cy); ctx.lineTo(W + 16, cy);
+        ctx.strokeStyle = 'rgba(120,170,230,.11)';
+        ctx.stroke();
+
+        // black edge vignette
+        var vg = ctx.createRadialGradient(cx, cy, bgR * .5, cx, cy, bgR);
+        vg.addColorStop(0, 'rgba(0,0,0,0)');
+        vg.addColorStop(1, 'rgba(0,0,0,.62)');
+        ctx.fillStyle = vg;
+        ctx.fillRect(-bgR, -bgR, W + bgR * 2, H + bgR * 2);
+
+        // ring track: dark surface with glowing cyan walls
+        ctx.strokeStyle = 'rgba(4,8,20,.9)';
+        ctx.lineWidth = 26;
+        ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
+        glowArc(ctx, cx, cy, radius - 13.5, 0, Math.PI * 2, C_CYAN, 7, 3, 1.5);
+        glowArc(ctx, cx, cy, radius + 13.5, 0, Math.PI * 2, C_CYAN, 7, 3, 1.5);
+
+        // faint orbit ticks between the track walls
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = C_CYAN;
+        for (var i = 0; i < 12; i++) {
+          var a = i * Math.PI / 6;
+          var x1 = cx + Math.cos(a) * (radius - 9), y1 = cy + Math.sin(a) * (radius - 9);
+          var x2 = cx + Math.cos(a) * (radius + 9), y2 = cy + Math.sin(a) * (radius + 9);
+          ctx.globalAlpha = .1;
+          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        // amber target arc: stacked glow, dashed gate, apex dot
+        var t0 = target - targetWidth / 2 - .055, t1 = target + targetWidth / 2 + .055;
+        glowArc(ctx, cx, cy, radius, t0, t1, C_AMBER, 14, 8, 3.2);
+        ctx.lineCap = 'round';
+        ctx.setLineDash([3, 7]);
+        ctx.lineDashOffset = reduced ? 0 : -t / 90;
+        ctx.globalAlpha = .4; ctx.strokeStyle = C_AMBER; ctx.lineWidth = 5.5;
+        ctx.beginPath(); ctx.arc(cx, cy, radius, t0, t1); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha = 1;
+        var ax = cx + Math.cos(target) * radius, ay = cy + Math.sin(target) * radius;
+        ctx.globalAlpha = .15; ctx.fillStyle = C_AMBER;
+        ctx.beginPath(); ctx.arc(ax, ay, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = C_AMBER;
+        ctx.beginPath(); ctx.arc(ax, ay, 3, 0, Math.PI * 2); ctx.fill();
+
+        // spark trail: three overlapping segments, brighter toward the head
+        var trails = [[.5, .26, .06, 2.2], [.26, .09, .18, 3.2], [.09, 0, .5, 4.6]];
+        for (var k = 0; k < trails.length; k++) {
+          strokeArc(ctx, cx, cy, radius, angle - direction * trails[k][0], angle - direction * trails[k][1], trails[k][3], C_CYAN, trails[k][2], direction === -1);
         }
 
-        // target halo and arc
-        roundedArc(ctx,cx,cy,radius,target-targetWidth/2-.055,target+targetWidth/2+.055,14,'color-mix' in ctx ? colors.line : colors.line);
-        ctx.globalAlpha=.18;
-        roundedArc(ctx,cx,cy,radius,target-targetWidth/2-.07,target+targetWidth/2+.07,24,colors.lime);
-        ctx.globalAlpha=1;
-        roundedArc(ctx,cx,cy,radius,target-targetWidth/2,target+targetWidth/2,9,colors.lime);
-
-        // target cap indicators
-        var tx=cx+Math.cos(target)*radius, ty=cy+Math.sin(target)*radius;
-        ctx.beginPath(); ctx.arc(tx,ty,2.3,0,Math.PI*2); ctx.fillStyle=colors.ink; ctx.fill();
-
-        var ox=cx+Math.cos(angle)*radius, oy=cy+Math.sin(angle)*radius;
-        ctx.globalAlpha=.18 + .06*Math.sin(t/150);
-        ctx.beginPath(); ctx.arc(ox,oy,18,0,Math.PI*2); ctx.fillStyle=colors.coral; ctx.fill();
-        ctx.globalAlpha=1;
-        ctx.beginPath(); ctx.arc(ox,oy,7.5,0,Math.PI*2); ctx.fillStyle=colors.coral; ctx.fill();
-        ctx.beginPath(); ctx.arc(ox-2,oy-2,2.1,0,Math.PI*2); ctx.fillStyle=colors.paper; ctx.fill();
+        // spark: cyan body, white-hot core
+        var ox = cx + Math.cos(angle) * radius, oy = cy + Math.sin(angle) * radius;
+        var pulse = .5 + .5 * Math.sin(t / 160);
+        ctx.globalAlpha = .1 + .08 * pulse; ctx.fillStyle = C_CYAN;
+        ctx.beginPath(); ctx.arc(ox, oy, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = .55; ctx.fillStyle = C_CYAN;
+        ctx.beginPath(); ctx.arc(ox, oy, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1; ctx.fillStyle = C_WHITE;
+        ctx.beginPath(); ctx.arc(ox, oy, 2.4, 0, Math.PI * 2); ctx.fill();
 
         // center streak readout
         if (state === 'playing') {
-          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           if (streak >= 1) {
-            var numberColor = streak >= 15 ? colors.coral : (streak >= 10 ? colors.lime : (streak >= 5 ? colors.cyan : colors.ink));
             var numberSize = 30 + Math.min(streak, 20) * 1.2;
-            ctx.shadowColor = numberColor;
-            ctx.shadowBlur = 5;
-            ctx.fillStyle = numberColor;
             ctx.font = '700 ' + numberSize + 'px DM Mono, monospace';
+            ctx.globalAlpha = .06; ctx.strokeStyle = C_AMBER; ctx.lineWidth = 9;
+            ctx.strokeText(String(streak), cx, cy - 6);
+            ctx.globalAlpha = .18; ctx.lineWidth = 5;
+            ctx.strokeText(String(streak), cx, cy - 6);
+            ctx.globalAlpha = 1; ctx.fillStyle = C_AMBER;
             ctx.fillText(String(streak), cx, cy - 6);
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = colors.muted;
+            ctx.fillStyle = C_MUTED;
             ctx.font = '500 10px DM Mono, monospace';
             ctx.fillText('STREAK', cx, cy + 26);
           } else {
-            ctx.fillStyle = colors.muted;
+            ctx.fillStyle = C_MUTED;
             ctx.font = '500 11px DM Mono, monospace';
             ctx.fillText('FIND THE ARC', cx, cy);
           }
@@ -253,9 +329,9 @@
       }
       function drawEffects() {
         ctx.save();
-        particles.forEach(function(p){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.color; ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill(); });
+        particles.forEach(function(p){ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.color; ctx.beginPath();ctx.rect(p.x-p.size*p.life/2,p.y-p.size*p.life/2,p.size*p.life,p.size*p.life);ctx.fill(); });
         rings.forEach(function(r){ ctx.globalAlpha=Math.max(0,r.life);ctx.strokeStyle=r.color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,Math.PI*2);ctx.stroke(); });
-        if(flash){ctx.globalAlpha=flash*.18;ctx.fillStyle=colors.lime;ctx.fillRect(0,0,W,H);}
+        if(flash){ctx.globalAlpha=flash*.16;ctx.fillStyle=flashColor;ctx.fillRect(-15,-15,W+30,H+30);}
         ctx.restore();
       }
       function loop(t) {

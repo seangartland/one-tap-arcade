@@ -25,6 +25,7 @@
     }
     .grain { opacity: .09; mix-blend-mode: screen; }
     canvas { touch-action: none; }
+    .mark:has(svg) svg { filter: none; }
   </style>
 </head>
 <body class="game">
@@ -38,7 +39,7 @@
     <div class="hint">Drag anywhere · <span class="key">WASD</span></div>
 
     <section class="overlay" id="overlay" aria-modal="true" role="dialog" aria-labelledby="title">
-      <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M18 52 L46 36" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".5" fill="none"/><circle cx="54" cy="32" r="7" fill="currentColor"/><circle cx="88" cy="16" r="3" fill="currentColor" opacity=".4"/><circle cx="96" cy="48" r="3" fill="currentColor" opacity=".4"/><circle cx="30" cy="14" r="3" fill="currentColor" opacity=".4"/></svg></div>
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><defs><radialGradient id="dodgeHaze" cx=".85" cy=".12" r=".95"><stop offset="0" stop-color="#ff2bd6" stop-opacity=".18"/><stop offset="1" stop-color="#ff2bd6" stop-opacity="0"/></radialGradient></defs><rect width="120" height="68" fill="url(#dodgeHaze)"/><path d="M14 51 L46 36" stroke="#7edcff" stroke-width="4" stroke-linecap="round" opacity=".3" fill="none"/><path d="M26 45 L48 35" stroke="#aaf5ff" stroke-width="2" stroke-linecap="round" opacity=".55" fill="none"/><circle cx="54" cy="32" r="8" fill="#aaf5ff" opacity=".9"/><circle cx="54" cy="32" r="4" fill="#ffffff"/><circle cx="54" cy="32" r="15" stroke="#ffd166" stroke-width="1.6" fill="none" stroke-dasharray="4 5" opacity=".85"/><path d="M86 12 l3.2 -3.2 l3.2 3.2 l-3.2 3.2 z" stroke="#ff2bd6" stroke-width="1.4" fill="none"/><path d="M89 16 L89 7" stroke="#ff2bd6" stroke-width="1.6" stroke-linecap="round" opacity=".22"/><path d="M89 15 L89 10" stroke="#ff2bd6" stroke-width=".9" stroke-linecap="round" opacity=".7"/><path d="M99 27 l2.7 -2.7 l2.7 2.7 l-2.7 2.7 z" stroke="#ff2bd6" stroke-width="1.4" fill="none"/><path d="M102 30 L102 21" stroke="#ff2bd6" stroke-width="1.6" stroke-linecap="round" opacity=".22"/><path d="M102 29 L102 24" stroke="#ff2bd6" stroke-width=".9" stroke-linecap="round" opacity=".7"/></svg></div>
     </section>
   </main>
 
@@ -69,6 +70,7 @@
 
       var state = 'ready';
       var W = 0, H = 0, dpr = 1;
+      var bgGrad = null, vigGrad = null;
       var score = 0;
       var scoreFloat = 0;
       var elapsed = 0;
@@ -87,9 +89,18 @@
       var trail = [];
       var nebulas = [];
       var flash = 0;
-      var redPulse = 0;
+      var tension = 0;
       var shake = 0;
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // APEX palette: cyan player, amber target/score, magenta threat, white hot core
+      var C_CYAN = [1, 205, 250];
+      var C_ICE = [170, 245, 255];
+      var C_AMB = [255, 209, 102];
+      var C_MAG = [255, 43, 214];
+      var C_WHT = [255, 255, 255];
+      function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+      function mixc(a, b, t) { return [a[0] + (b[0] - a[0]) * t | 0, a[1] + (b[1] - a[1]) * t | 0, a[2] + (b[2] - a[2]) * t | 0]; }
 
       // player
       var px = 0, py = 0, tx = 0, ty = 0;
@@ -104,6 +115,10 @@
         W = window.innerWidth; H = window.innerHeight;
         canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        bgGrad = ctx.createRadialGradient(W / 2, H * .35, 0, W / 2, H * .35, Math.hypot(W, H) * .8);
+        bgGrad.addColorStop(0, '#0a1634'); bgGrad.addColorStop(.55, '#050a1a'); bgGrad.addColorStop(1, '#020308');
+        vigGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.min(W, H) * .72);
+        vigGrad.addColorStop(0, 'rgba(0,0,0,0)'); vigGrad.addColorStop(1, 'rgba(0,0,0,.62)');
         px = tx = W / 2; py = ty = H * .68;
         initField();
       }
@@ -118,9 +133,9 @@
           stars.push({ x: Math.random() * W, y: Math.random() * H, s: rand(.6, 1.9), spd: rand(10, 42), tw: Math.random() * Math.PI * 2 });
         }
         nebulas = [
-          { x: W * .2, y: H * .25, r: Math.max(W, H) * .32, c: '167,139,250', vx: 6, vy: 3, ph: 0 },
-          { x: W * .82, y: H * .7, r: Math.max(W, H) * .28, c: '75,199,207', vx: -5, vy: 4, ph: 2 },
-          { x: W * .6, y: H * .1, r: Math.max(W, H) * .22, c: '120,110,220', vx: 4, vy: -3, ph: 4 }
+          { x: W * .2, y: H * .25, r: Math.max(W, H) * .32, c: '70,120,230', vx: 6, vy: 3, ph: 0 },
+          { x: W * .82, y: H * .7, r: Math.max(W, H) * .28, c: '60,190,235', vx: -5, vy: 4, ph: 2 },
+          { x: W * .6, y: H * .1, r: Math.max(W, H) * .22, c: '120,150,255', vx: 4, vy: -3, ph: 4 }
         ];
       }
 
@@ -157,7 +172,7 @@
         state = 'playing';
         score = 0; scoreFloat = 0; elapsed = 0; Arcade.resetPhase();
         shards = []; particles = []; rings = []; trail = [];
-        flash = 0; redPulse = 0; shake = 0;
+        flash = 0; tension = 0; shake = 0;
         spawnTimer = .5;
         spawnShard(-30); spawnShard(-160); spawnShard(-290);
         px = tx = W / 2; py = ty = H * .68;
@@ -182,8 +197,8 @@
         if (state !== 'playing') return;
         state = 'dying';
         deathSound();
-        burst(px, py, colors.cyan, 26);
-        burst(px, py, colors.lime, 16);
+        burst(px, py, C_MAG, 26);
+        burst(px, py, C_WHT, 16);
         shake = reduced ? 0 : 13;
         flash = .4;
         setTimeout(endGame, 420);
@@ -272,9 +287,9 @@
               sh.grazed = false;
               score += 2; scoreFloat += 2; setScore();
               grazeSound();
-              rings.push({x: sh.x, y: sh.y, r: 8, life: 1, color: colors.cyan});
-              redPulse = .55;
-              showToast('+2 close call', colors.cyan);
+              rings.push({x: sh.x, y: sh.y, r: 8, life: 1, color: C_AMB});
+              tension = .55;
+              showToast('+2 close call', '#ffd166');
             }
           }
           if (sh.y > H + 40 || sh.x < -60 || sh.x > W + 60) shards.splice(i, 1);
@@ -304,20 +319,43 @@
           if (rings[rg].life <= 0) rings.splice(rg, 1);
         }
         flash = Math.max(0, flash - dt * 1.7);
-        redPulse = Math.max(0, redPulse - dt * 1.4);
+        tension = Math.max(0, tension - dt * 1.4);
         shake = Math.max(0, shake - dt * 46);
+      }
+
+      function drawGrid() {
+        var sp = 64;
+        var mn = new Path2D(), mj = new Path2D();
+        var i, x, y;
+        for (i = 0; i <= W / sp + 1; i++) {
+          x = i * sp;
+          if (i % 5 === 0) { mj.moveTo(x, 0); mj.lineTo(x, H); }
+          else { mn.moveTo(x, 0); mn.lineTo(x, H); }
+        }
+        for (i = 0; i <= H / sp + 1; i++) {
+          y = i * sp;
+          if (i % 5 === 0) { mj.moveTo(0, y); mj.lineTo(W, y); }
+          else { mn.moveTo(0, y); mn.lineTo(W, y); }
+        }
+        ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(40,130,255,.06)'; ctx.stroke(mn);
+        ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(90,170,255,.12)'; ctx.stroke(mj);
       }
 
       function drawBackground(t) {
         ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, W, H);
         ctx.save();
         if (shake) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+
+        // faint blue grid
+        drawGrid();
 
         // nebulas
         nebulas.forEach(function (neb) {
           var wob = 1 + .06 * Math.sin(neb.ph);
           var g = ctx.createRadialGradient(neb.x, neb.y, 0, neb.x, neb.y, neb.r * wob);
-          g.addColorStop(0, 'rgba(' + neb.c + ',.10)');
+          g.addColorStop(0, 'rgba(' + neb.c + ',.12)');
           g.addColorStop(1, 'rgba(' + neb.c + ',0)');
           ctx.fillStyle = g;
           ctx.fillRect(neb.x - neb.r, neb.y - neb.r, neb.r * 2, neb.r * 2);
@@ -337,82 +375,110 @@
         ctx.save();
         if (shake) ctx.translate(rand(-shake, shake), rand(-shake, shake));
 
-        // shards
+        // storm haze where threats arrive
+        var hz = ctx.createLinearGradient(0, 0, 0, H * .2);
+        hz.addColorStop(0, 'rgba(255,43,214,.09)');
+        hz.addColorStop(1, 'rgba(255,43,214,0)');
+        ctx.fillStyle = hz;
+        ctx.fillRect(0, 0, W, H * .2);
+
+        // shards: hollow magenta diamonds with tapered tails, stacked-stroke glow
         shards.forEach(function (sh) {
+          var r = sh.size;
+          var spd = Math.sqrt(sh.vx * sh.vx + sh.vy * sh.vy) || 1;
+          var nx = sh.vx / spd, ny = sh.vy / spd;
+          var px2 = -ny, py2 = nx;
+          var tl = r * 2.8;
+          var tg = ctx.createLinearGradient(sh.x - nx * tl, sh.y - ny * tl, sh.x, sh.y);
+          tg.addColorStop(0, rgba(C_MAG, 0));
+          tg.addColorStop(1, rgba(C_MAG, .26));
+          ctx.fillStyle = tg;
+          ctx.beginPath();
+          ctx.moveTo(sh.x + nx * r * .6, sh.y + ny * r * .6);
+          ctx.lineTo(sh.x - nx * tl - px2 * r * .7, sh.y - ny * tl - py2 * r * .7);
+          ctx.lineTo(sh.x - nx * tl + px2 * r * .7, sh.y - ny * tl + py2 * r * .7);
+          ctx.closePath(); ctx.fill();
+
           ctx.save();
           ctx.translate(sh.x, sh.y);
           ctx.rotate(sh.rot);
-          ctx.shadowBlur = 14;
-          ctx.shadowColor = colors.lime;
-          ctx.strokeStyle = colors.lime;
-          ctx.lineWidth = 2;
-          var r = sh.size;
-          ctx.beginPath();
-          ctx.moveTo(0, -r); ctx.lineTo(r * .72, 0); ctx.lineTo(0, r); ctx.lineTo(-r * .72, 0);
-          ctx.closePath(); ctx.stroke();
-          ctx.shadowBlur = 0;
-          ctx.fillStyle = 'rgba(167,139,250,.16)';
-          ctx.fill();
-          ctx.fillStyle = colors.cyan;
-          ctx.beginPath(); ctx.arc(0, 0, 1.8, 0, Math.PI * 2); ctx.fill();
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          var P = new Path2D();
+          P.moveTo(0, -r); P.lineTo(r * .72, 0); P.lineTo(0, r); P.lineTo(-r * .72, 0); P.closePath();
+          ctx.lineWidth = r * 1.8; ctx.strokeStyle = rgba(C_MAG, .06); ctx.stroke(P);
+          ctx.lineWidth = r * .9; ctx.strokeStyle = rgba(C_MAG, .2); ctx.stroke(P);
+          ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(mixc(C_MAG, C_WHT, .35), .9); ctx.stroke(P);
+          ctx.fillStyle = rgba(C_MAG, .1); ctx.fill(P);
+          ctx.fillStyle = 'rgba(255,255,255,.9)';
+          ctx.beginPath(); ctx.arc(0, r * .55, 1.4, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         });
 
-        // comet trail
-        for (var i = 0; i < trail.length; i++) {
-          var tp = trail[i];
-          var f = i / trail.length;
-          ctx.globalAlpha = f * .5;
-          ctx.fillStyle = colors.cyan;
-          ctx.beginPath();
-          ctx.arc(tp.x, tp.y, 2 + f * 7, 0, Math.PI * 2);
-          ctx.fill();
+        // comet trail: three overlapping passes, brighter toward the head
+        for (var pass = 0; pass < 3; pass++) {
+          for (var i = 0; i < trail.length; i++) {
+            var tp = trail[i];
+            var f = trail.length > 1 ? i / (trail.length - 1) : 1;
+            if (pass === 0) {
+              ctx.globalAlpha = .05 * f; ctx.fillStyle = rgba(C_CYAN, 1);
+              ctx.beginPath(); ctx.arc(tp.x, tp.y, 3 + f * 7, 0, Math.PI * 2); ctx.fill();
+            } else if (pass === 1) {
+              ctx.globalAlpha = .15 * f; ctx.fillStyle = rgba(C_ICE, 1);
+              ctx.beginPath(); ctx.arc(tp.x, tp.y, 1.8 + f * 4, 0, Math.PI * 2); ctx.fill();
+            } else {
+              ctx.globalAlpha = .85 * f; ctx.fillStyle = rgba(mixc(C_ICE, C_WHT, f), 1);
+              ctx.beginPath(); ctx.arc(tp.x, tp.y, .9 + f * 2.2, 0, Math.PI * 2); ctx.fill();
+            }
+          }
         }
         ctx.globalAlpha = 1;
 
-        // comet head
+        // comet head: stacked-stroke glow, cyan body, white core
         if (state === 'playing' || state === 'dying') {
           ctx.save();
-          ctx.shadowBlur = 22;
-          ctx.shadowColor = colors.cyan;
-          ctx.fillStyle = colors.cyan;
+          ctx.globalAlpha = .08; ctx.fillStyle = rgba(C_CYAN, 1);
+          ctx.beginPath(); ctx.arc(px, py, 24, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = .22; ctx.fillStyle = rgba(C_CYAN, 1);
+          ctx.beginPath(); ctx.arc(px, py, 15, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 1; ctx.fillStyle = 'rgba(170,245,255,1)';
           ctx.beginPath(); ctx.arc(px, py, 10, 0, Math.PI * 2); ctx.fill();
-          ctx.shadowBlur = 0;
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath(); ctx.arc(px - 2, py - 2, 3.4, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,1)';
+          ctx.beginPath(); ctx.arc(px - 2, py - 2, 3.6, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         }
 
         // particles + rings
         particles.forEach(function (p) {
           ctx.globalAlpha = Math.max(0, p.life);
-          ctx.fillStyle = p.color;
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = rgba(p.color, Math.max(0, p.life));
+          var s = Math.max(.6, p.size * p.life);
+          ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
         });
         rings.forEach(function (r) {
           ctx.globalAlpha = Math.max(0, r.life);
-          ctx.strokeStyle = r.color; ctx.lineWidth = 2;
+          ctx.setLineDash([5, 7]);
+          ctx.lineWidth = 2.4 * r.life + .4;
+          ctx.strokeStyle = rgba(r.color, .9);
           ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
         });
         ctx.globalAlpha = 1;
         ctx.restore();
 
-        // vignette
-        var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .36, W / 2, H / 2, Math.max(W, H) * .72);
-        vg.addColorStop(0, 'rgba(0,0,0,0)');
-        vg.addColorStop(1, 'rgba(4,5,12,.5)');
-        ctx.fillStyle = vg;
+        // vignette (black edge)
+        ctx.fillStyle = vigGrad;
         ctx.fillRect(0, 0, W, H);
-        if (redPulse > 0) {
+        if (tension > 0) {
           var rg2 = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .3, W / 2, H / 2, Math.max(W, H) * .7);
-          rg2.addColorStop(0, 'rgba(255,70,70,0)');
-          rg2.addColorStop(1, 'rgba(255,70,70,' + (redPulse * .22).toFixed(3) + ')');
+          rg2.addColorStop(0, 'rgba(255,209,102,0)');
+          rg2.addColorStop(1, 'rgba(255,209,102,' + (tension * .18).toFixed(3) + ')');
           ctx.fillStyle = rg2;
           ctx.fillRect(0, 0, W, H);
         }
         if (flash > 0) {
           ctx.globalAlpha = flash * .22;
-          ctx.fillStyle = colors.coral;
+          ctx.fillStyle = 'rgba(255,43,214,1)';
           ctx.fillRect(0, 0, W, H);
           ctx.globalAlpha = 1;
         }

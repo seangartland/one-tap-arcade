@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2305070f'/%3E%3Cpath d='M11 4 V28 M21 4 V28' stroke='%2301cdfe' stroke-width='2' opacity='.6'/%3E%3Crect x='4' y='6' width='5' height='7' rx='1' fill='%23ffb300'/%3E%3Cpath d='M16 18 L20 27 H12 Z' fill='%2301cdfe'/%3E%3C/svg%3E" />
   <meta name="color-scheme" content="dark" />
-  <meta name="theme-color" content="#05070f" />
+  <meta name="theme-color" content="#020308" />
   <title>Lanes - a three-lane neon dodger</title>
   <link rel="stylesheet" href="/shared/arcade.css" />
   <style>
     canvas { touch-action: none; }
+    .mark:has(svg) svg { filter: none; }
   </style>
 </head>
 <body class="game">
@@ -23,7 +24,7 @@
     <div class="hint">Tap a side to switch · <span class="key">←</span> <span class="key">→</span></div>
 
     <section class="overlay" id="overlay" aria-modal="true" role="dialog" aria-labelledby="title">
-      <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M40 8 V60 M80 8 V60" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".4" fill="none"/><rect x="12" y="12" width="24" height="9" rx="2" fill="currentColor" opacity=".45"/><rect x="84" y="20" width="24" height="9" rx="2" fill="currentColor" opacity=".45"/><path d="M60 28 L70 52 H50 Z" fill="currentColor"/></svg></div>
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M8 8 V60 M112 8 V60" stroke="#01cdfe" stroke-width="6" stroke-linecap="round" opacity=".1" fill="none"/><path d="M8 8 V60 M112 8 V60" stroke="#aaf5ff" stroke-width="1.5" stroke-linecap="round" opacity=".8" fill="none"/><path d="M40 8 V60 M80 8 V60" stroke="#01cdfe" stroke-width="4" stroke-linecap="round" opacity=".14" stroke-dasharray="4 8" fill="none"/><path d="M40 8 V60 M80 8 V60" stroke="#aaf5ff" stroke-width="1.2" stroke-linecap="round" opacity=".55" stroke-dasharray="4 8" fill="none"/><rect x="14" y="14" width="19" height="10" rx="2" fill="#08101f" stroke="#ff2bd6" stroke-width="5" opacity=".16"/><rect x="14" y="14" width="19" height="10" rx="2" fill="#08101f" stroke="#ff7ae0" stroke-width="1.3" opacity=".9"/><rect x="87" y="22" width="19" height="10" rx="2" fill="#08101f" stroke="#ff2bd6" stroke-width="5" opacity=".16"/><rect x="87" y="22" width="19" height="10" rx="2" fill="#08101f" stroke="#ff7ae0" stroke-width="1.3" opacity=".9"/><path d="M38 45 L40 41 L42 45 M78 45 L80 41 L82 45" stroke="#ffd166" stroke-width="3.4" stroke-linecap="round" opacity=".12" fill="none"/><path d="M38 45 L40 41 L42 45 M78 45 L80 41 L82 45" stroke="#ffd166" stroke-width="1.5" stroke-linecap="round" opacity=".85" fill="none"/><path d="M38 56 L40 52 L42 56 M78 56 L80 52 L82 56" stroke="#ffd166" stroke-width="3.4" stroke-linecap="round" opacity=".12" fill="none"/><path d="M38 56 L40 52 L42 56 M78 56 L80 52 L82 56" stroke="#ffd166" stroke-width="1.5" stroke-linecap="round" opacity=".85" fill="none"/><path d="M60 34 L72 50 L60 45 L48 50 Z" fill="#08101f" stroke="#01cdfe" stroke-width="5" stroke-linejoin="round" opacity=".18"/><path d="M60 34 L72 50 L60 45 L48 50 Z" fill="#08101f" stroke="#aaf5ff" stroke-width="1.4" stroke-linejoin="round" opacity=".95"/><circle cx="60" cy="42" r="2.2" fill="#ffffff"/></svg></div>
     </section>
   </main>
 
@@ -51,8 +52,18 @@
       var showToast = Arcade.showToast;
       var colors = Arcade.colors;
 
+      // APEX palette: cyan player/track, amber target/score, magenta threat, white hot core
+      var C_CYAN = [1, 205, 250];
+      var C_ICE = [170, 245, 255];
+      var C_AMB = [255, 209, 102];
+      var C_MAG = [255, 43, 214];
+      var C_WHT = [255, 255, 255];
+      function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+      function mixc(a, b, t) { return [a[0] + (b[0] - a[0]) * t | 0, a[1] + (b[1] - a[1]) * t | 0, a[2] + (b[2] - a[2]) * t | 0]; }
+
       var state = 'ready';
       var W = 0, H = 0, dpr = 1;
+      var bgGrad = null, vigGrad = null;
       var score = 0;
       var elapsed = 0;
       function checkPhase() {
@@ -96,6 +107,10 @@
         W = window.innerWidth; H = window.innerHeight;
         canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        bgGrad = ctx.createRadialGradient(W / 2, H * .35, 0, W / 2, H * .35, Math.hypot(W, H) * .8);
+        bgGrad.addColorStop(0, '#0a1634'); bgGrad.addColorStop(.55, '#050a1a'); bgGrad.addColorStop(1, '#020308');
+        vigGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.min(W, H) * .72);
+        vigGrad.addColorStop(0, 'rgba(0,0,0,0)'); vigGrad.addColorStop(1, 'rgba(0,0,0,.62)');
         layout();
         initField();
       }
@@ -110,9 +125,9 @@
           stars.push({ x: Math.random() * W, y: Math.random() * H, s: rand(.6, 1.9), spd: rand(10, 42), tw: Math.random() * Math.PI * 2 });
         }
         nebulas = [
-          { x: W * .2, y: H * .25, r: Math.max(W, H) * .32, c: '1,205,254', vx: 6, vy: 3, ph: 0 },
-          { x: W * .82, y: H * .7, r: Math.max(W, H) * .28, c: '255,179,0', vx: -5, vy: 4, ph: 2 },
-          { x: W * .6, y: H * .1, r: Math.max(W, H) * .22, c: '80,160,220', vx: 4, vy: -3, ph: 4 }
+          { x: W * .2, y: H * .25, r: Math.max(W, H) * .32, c: '70,120,230', vx: 6, vy: 3, ph: 0 },
+          { x: W * .82, y: H * .7, r: Math.max(W, H) * .28, c: '60,190,235', vx: -5, vy: 4, ph: 2 },
+          { x: W * .6, y: H * .1, r: Math.max(W, H) * .22, c: '120,150,255', vx: 4, vy: -3, ph: 4 }
         ];
       }
 
@@ -180,8 +195,8 @@
         if (state !== 'playing') return;
         state = 'dying';
         deathSound();
-        burst(px, py, colors.cyan, 24);
-        burst(px, py, colors.coral, 18);
+        burst(px, py, C_MAG, 26);
+        burst(px, py, C_WHT, 16);
         shake = reduced ? 0 : 13;
         flash = .4;
         setTimeout(endGame, 420);
@@ -204,7 +219,7 @@
         lane = n;
         shiftSound();
         if (!reduced) {
-          rings.push({ x: laneCenter(lane), y: py, r: 6, life: .7, color: colors.cyan });
+          rings.push({ x: laneCenter(lane), y: py, r: 6, life: .7, color: C_AMB });
         }
       }
 
@@ -257,7 +272,7 @@
             particles.push({
               x: px + rand(-4, 4), y: py + 13,
               vx: rand(-14, 14), vy: rand(50, 105),
-              life: .5, size: rand(1.4, 3), color: colors.cyan, drag: 0
+              life: .5, size: rand(1.4, 3), color: C_CYAN, drag: 0
             });
           }
 
@@ -284,7 +299,7 @@
             if (!b.scored && b.y > py + SHIP_R) {
               b.scored = true;
               score += 1; setScore();
-              rings.push({ x: bx, y: b.y, r: 5, life: 1, color: b.lane === lane ? colors.coral : colors.cyan });
+              rings.push({ x: bx, y: b.y, r: 5, life: 1, color: C_AMB });
               if (b.lane === lane) passSound();
             }
             if (b.y > H + 30) blocks.splice(i, 1);
@@ -332,15 +347,37 @@
         ctx.closePath();
       }
 
+      function drawGrid() {
+        var sp = 64;
+        var mn = new Path2D(), mj = new Path2D();
+        var i, x, y;
+        for (i = 0; i <= W / sp + 1; i++) {
+          x = i * sp;
+          if (i % 5 === 0) { mj.moveTo(x, 0); mj.lineTo(x, H); }
+          else { mn.moveTo(x, 0); mn.lineTo(x, H); }
+        }
+        for (i = 0; i <= H / sp + 1; i++) {
+          y = i * sp;
+          if (i % 5 === 0) { mj.moveTo(0, y); mj.lineTo(W, y); }
+          else { mn.moveTo(0, y); mn.lineTo(W, y); }
+        }
+        ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(40,130,255,.06)'; ctx.stroke(mn);
+        ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(90,170,255,.12)'; ctx.stroke(mj);
+      }
+
       function drawBackground() {
         ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, W, H);
         ctx.save();
         if (shake) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+
+        drawGrid();
 
         nebulas.forEach(function (neb) {
           var wob = 1 + .06 * Math.sin(neb.ph);
           var g = ctx.createRadialGradient(neb.x, neb.y, 0, neb.x, neb.y, neb.r * wob);
-          g.addColorStop(0, 'rgba(' + neb.c + ',.10)');
+          g.addColorStop(0, 'rgba(' + neb.c + ',.12)');
           g.addColorStop(1, 'rgba(' + neb.c + ',0)');
           ctx.fillStyle = g;
           ctx.fillRect(neb.x - neb.r, neb.y - neb.r, neb.r * 2, neb.r * 2);
@@ -356,40 +393,72 @@
       }
 
       function drawRails(t) {
-        ctx.save();
-        // outer rails
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = colors.cyan;
-        ctx.globalAlpha = .35;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = colors.cyan;
-        ctx.beginPath();
-        ctx.moveTo(pfX, 0); ctx.lineTo(pfX, H);
-        ctx.moveTo(pfX + pfW, 0); ctx.lineTo(pfX + pfW, H);
-        ctx.stroke();
-        // inner dashed dividers, slowly scrolling
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = .5;
-        ctx.lineWidth = 1.5;
+        // near-opaque dark track surface
+        ctx.fillStyle = 'rgba(4,8,20,.9)';
+        ctx.fillRect(pfX, 0, pfW, H);
+
+        // magenta haze where threats arrive
+        var hz = ctx.createLinearGradient(0, 0, 0, H * .16);
+        hz.addColorStop(0, 'rgba(255,43,214,.07)');
+        hz.addColorStop(1, 'rgba(255,43,214,0)');
+        ctx.fillStyle = hz;
+        ctx.fillRect(pfX, 0, pfW, H * .16);
+
+        // outer rails: stacked cyan glow
+        var rail = new Path2D();
+        rail.moveTo(pfX, 0); rail.lineTo(pfX, H);
+        rail.moveTo(pfX + pfW, 0); rail.lineTo(pfX + pfW, H);
+        ctx.lineWidth = 9; ctx.strokeStyle = rgba(C_CYAN, .07); ctx.stroke(rail);
+        ctx.lineWidth = 2.4; ctx.strokeStyle = rgba(C_CYAN, .2); ctx.stroke(rail);
+        ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(C_ICE, .85); ctx.stroke(rail);
+
+        // inner dashed dividers, slowly scrolling, stacked glow
+        ctx.lineCap = 'round';
         ctx.setLineDash([3, 13]);
         ctx.lineDashOffset = -t * .02;
-        ctx.beginPath();
-        ctx.moveTo(pfX + laneW, 0); ctx.lineTo(pfX + laneW, H);
-        ctx.moveTo(pfX + laneW * 2, 0); ctx.lineTo(pfX + laneW * 2, H);
-        ctx.stroke();
+        var div = new Path2D();
+        div.moveTo(pfX + laneW, 0); div.lineTo(pfX + laneW, H);
+        div.moveTo(pfX + laneW * 2, 0); div.lineTo(pfX + laneW * 2, H);
+        ctx.lineWidth = 6; ctx.strokeStyle = rgba(C_CYAN, .06); ctx.stroke(div);
+        ctx.lineWidth = 1.6; ctx.strokeStyle = rgba(C_CYAN, .18); ctx.stroke(div);
+        ctx.lineWidth = 1; ctx.strokeStyle = rgba(C_ICE, .5); ctx.stroke(div);
         ctx.setLineDash([]);
-        ctx.restore();
+        ctx.lineCap = 'butt';
+      }
+
+      function drawOpenLane(t) {
+        var l0 = pfX + laneF * laneW;
+        var l1 = l0 + laneW;
+        // soft amber wash lighting the open lane from below
+        var wash = ctx.createLinearGradient(0, H, 0, py - laneW * .7);
+        wash.addColorStop(0, rgba(C_AMB, .07));
+        wash.addColorStop(1, rgba(C_AMB, 0));
+        ctx.fillStyle = wash;
+        ctx.fillRect(l0, py - laneW * .7, laneW, H - (py - laneW * .7));
+        // amber chevrons on the open lane edges
+        for (var e = 0; e < 2; e++) {
+          var ex = e === 0 ? l0 : l1;
+          for (var i = 0; i < 5; i++) {
+            var cy = py + 16 - i * 18;
+            var P = new Path2D();
+            P.moveTo(ex - 6, cy + 5); P.lineTo(ex, cy); P.lineTo(ex + 6, cy + 5);
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = rgba(C_AMB, .1); ctx.lineWidth = 3.4; ctx.stroke(P);
+            ctx.strokeStyle = rgba(C_AMB, .85); ctx.lineWidth = 1.4; ctx.stroke(P);
+          }
+        }
+        ctx.lineCap = 'butt';
       }
 
       function drawShip(t) {
         var bob = state === 'playing' ? 0 : Math.sin(t * .003) * 3;
         var sx = px, sy = py + bob;
-        // floor glow
+        // floor glow: cyan safe surface beneath the ship
         ctx.save();
-        ctx.globalAlpha = .5;
+        ctx.globalAlpha = .4;
         var fg = ctx.createRadialGradient(sx, py + 30, 0, sx, py + 30, laneW * .45);
-        fg.addColorStop(0, 'rgba(1,205,254,.35)');
-        fg.addColorStop(1, 'rgba(1,205,254,0)');
+        fg.addColorStop(0, rgba(C_CYAN, .3));
+        fg.addColorStop(1, rgba(C_CYAN, 0));
         ctx.fillStyle = fg;
         ctx.beginPath(); ctx.arc(sx, py + 30, laneW * .45, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
@@ -397,23 +466,19 @@
         ctx.save();
         ctx.translate(sx, sy);
         ctx.rotate(tilt);
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = colors.cyan;
-        ctx.lineWidth = 2.2;
-        ctx.strokeStyle = colors.cyan;
-        ctx.fillStyle = colors.cyan;
-        ctx.beginPath();
-        ctx.moveTo(0, -17);
-        ctx.lineTo(12, 13);
-        ctx.lineTo(0, 7);
-        ctx.lineTo(-12, 13);
-        ctx.closePath();
-        ctx.globalAlpha = .22;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#ffffff';
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        var P = new Path2D();
+        P.moveTo(0, -17);
+        P.lineTo(12, 13);
+        P.lineTo(0, 7);
+        P.lineTo(-12, 13);
+        P.closePath();
+        ctx.strokeStyle = rgba(C_CYAN, .08); ctx.lineWidth = 7; ctx.stroke(P);
+        ctx.strokeStyle = rgba(C_CYAN, .22); ctx.lineWidth = 2.8; ctx.stroke(P);
+        ctx.strokeStyle = rgba(C_ICE, .95); ctx.lineWidth = 1.3; ctx.stroke(P);
+        ctx.fillStyle = 'rgba(8,16,31,.9)'; ctx.fill(P);
+        ctx.fillStyle = 'rgba(255,255,255,1)';
         ctx.beginPath(); ctx.arc(0, -3, 3, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
@@ -423,43 +488,46 @@
         if (shake) ctx.translate(rand(-shake, shake), rand(-shake, shake));
 
         drawRails(t);
+        drawOpenLane(t);
 
-        // blocks
+        // blocks: magenta-edged, stacked-stroke glow
         blocks.forEach(function (b) {
           var cx = laneCenter(b.lane);
           var w = laneW - 14;
           var x = cx - w / 2;
           var pulse = .82 + .18 * Math.sin(b.ph);
           ctx.save();
-          ctx.shadowBlur = 16;
-          ctx.shadowColor = colors.coral;
+          ctx.lineJoin = 'round';
           rr(x, b.y, w, b.h, 7);
-          ctx.globalAlpha = .16 * pulse;
-          ctx.fillStyle = colors.coral;
-          ctx.fill();
-          ctx.globalAlpha = pulse;
-          ctx.lineWidth = 2;
-          ctx.strokeStyle = colors.coral;
-          ctx.stroke();
-          ctx.shadowBlur = 0;
-          // inner highlight
-          ctx.globalAlpha = .35;
-          ctx.fillStyle = '#ffffff';
-          rr(x + 6, b.y + 5, w - 12, 3, 1.5);
+          ctx.fillStyle = 'rgba(8,16,31,.85)'; ctx.fill();
+          ctx.strokeStyle = rgba(C_MAG, .07 * pulse); ctx.lineWidth = w * .5; ctx.stroke();
+          ctx.strokeStyle = rgba(C_MAG, .2 * pulse); ctx.lineWidth = 5; ctx.stroke();
+          ctx.strokeStyle = rgba(mixc(C_MAG, C_WHT, .35), .95); ctx.lineWidth = 1.5; ctx.stroke();
+          // white hot top core
+          ctx.globalAlpha = .75;
+          ctx.fillStyle = 'rgba(255,255,255,.85)';
+          rr(x + 6, b.y + 4, w - 12, 2.5, 1.25);
           ctx.fill();
           ctx.restore();
           ctx.globalAlpha = 1;
         });
 
-        // trail behind the ship
-        for (var i = 0; i < trail.length; i++) {
-          var tp = trail[i];
-          var f = i / trail.length;
-          ctx.globalAlpha = f * .4;
-          ctx.fillStyle = colors.cyan;
-          ctx.beginPath();
-          ctx.arc(tp.x, tp.y, 2 + f * 6, 0, Math.PI * 2);
-          ctx.fill();
+        // trail behind the ship: three overlapping passes, brighter toward the head
+        for (var pass = 0; pass < 3; pass++) {
+          for (var i = 0; i < trail.length; i++) {
+            var tp = trail[i];
+            var f = trail.length > 1 ? i / (trail.length - 1) : 1;
+            if (pass === 0) {
+              ctx.globalAlpha = .05 * f; ctx.fillStyle = rgba(C_CYAN, 1);
+              ctx.beginPath(); ctx.arc(tp.x, tp.y, 3 + f * 7, 0, Math.PI * 2); ctx.fill();
+            } else if (pass === 1) {
+              ctx.globalAlpha = .15 * f; ctx.fillStyle = rgba(C_ICE, 1);
+              ctx.beginPath(); ctx.arc(tp.x, tp.y, 1.8 + f * 4, 0, Math.PI * 2); ctx.fill();
+            } else {
+              ctx.globalAlpha = .85 * f; ctx.fillStyle = rgba(mixc(C_ICE, C_WHT, f), 1);
+              ctx.beginPath(); ctx.arc(tp.x, tp.y, .9 + f * 2.2, 0, Math.PI * 2); ctx.fill();
+            }
+          }
         }
         ctx.globalAlpha = 1;
         trail.length = 0;
@@ -468,26 +536,27 @@
 
         particles.forEach(function (p) {
           ctx.globalAlpha = Math.max(0, p.life);
-          ctx.fillStyle = p.color;
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); ctx.fill();
+          var s = Math.max(.6, p.size * p.life);
+          ctx.fillStyle = rgba(p.color, Math.max(0, p.life));
+          ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
         });
         rings.forEach(function (r) {
           ctx.globalAlpha = Math.max(0, r.life);
-          ctx.strokeStyle = r.color; ctx.lineWidth = 2;
+          ctx.setLineDash([5, 7]);
+          ctx.lineWidth = 2.4 * r.life + .4;
+          ctx.strokeStyle = rgba(r.color, .9);
           ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
         });
         ctx.globalAlpha = 1;
         ctx.restore();
 
-        // vignette
-        var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .36, W / 2, H / 2, Math.max(W, H) * .72);
-        vg.addColorStop(0, 'rgba(0,0,0,0)');
-        vg.addColorStop(1, 'rgba(4,5,12,.5)');
-        ctx.fillStyle = vg;
+        // black edge vignette
+        ctx.fillStyle = vigGrad;
         ctx.fillRect(0, 0, W, H);
         if (flash > 0) {
           ctx.globalAlpha = flash * .22;
-          ctx.fillStyle = colors.coral;
+          ctx.fillStyle = 'rgba(255,43,214,1)';
           ctx.fillRect(0, 0, W, H);
           ctx.globalAlpha = 1;
         }

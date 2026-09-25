@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/shared/arcade.css" />
   <style>
     canvas { touch-action: none; }
+    .mark:has(svg) svg { filter: none; }
   </style>
 </head>
 <body class="game">
@@ -24,7 +25,7 @@
     <div class="hint">Hold anywhere · Space</div>
 
     <section class="overlay" id="overlay" aria-modal="true" role="dialog" aria-labelledby="title">
-      <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M8 58 H44 L52 50 H68 L76 58 H112" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/><g fill="currentColor"><rect x="52" y="26" width="16" height="11" rx="3"/><circle cx="60" cy="21" r="4"/></g><path d="M54 37 L48 48 M66 37 L72 48" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg></div>
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><defs><radialGradient id="landHaze" cx=".5" cy=".6" r=".85"><stop offset="0" stop-color="#4ab6ff" stop-opacity=".12"/><stop offset="1" stop-color="#4ab6ff" stop-opacity="0"/></radialGradient></defs><rect width="120" height="68" fill="url(#landHaze)"/><path d="M6 54 H114" stroke="#7edcff" stroke-width="6" stroke-linecap="round" opacity=".08" fill="none"/><path d="M6 54 H114" stroke="#aaf5ff" stroke-width="2.2" stroke-linecap="round" opacity=".3" fill="none"/><path d="M6 54 H114" stroke="#d9fbff" stroke-width="1.1" stroke-linecap="round" opacity=".85" fill="none"/><rect x="40" y="46" width="40" height="7" rx="3.5" fill="#ffd166" opacity=".22"/><rect x="40" y="46" width="40" height="7" rx="3.5" fill="none" stroke="#ffd166" stroke-width="3" opacity=".18"/><rect x="40" y="46" width="40" height="7" rx="3.5" fill="none" stroke="#ffd166" stroke-width="1.5" opacity=".75"/><rect x="40" y="46" width="40" height="7" rx="3.5" fill="none" stroke="#ffe9bd" stroke-width="1" opacity=".95"/><line x1="43" y1="47.8" x2="77" y2="47.8" stroke="#fff3d6" stroke-width="1.5" opacity=".9"/><circle cx="38" cy="49.5" r="3" fill="#ffd166" opacity=".3"/><circle cx="38" cy="49.5" r="1.8" fill="#ffd166"/><circle cx="38" cy="49.5" r=".9" fill="#ffffff"/><circle cx="82" cy="49.5" r="3" fill="#ffd166" opacity=".3"/><circle cx="82" cy="49.5" r="1.8" fill="#ffd166"/><circle cx="82" cy="49.5" r=".9" fill="#ffffff"/><path d="M60 24 V45" stroke="#ffd166" stroke-width="2.2" stroke-dasharray="3 4" stroke-linecap="round" opacity=".25" fill="none"/><path d="M60 24 V45" stroke="#ffd166" stroke-width="1.2" stroke-dasharray="3 4" stroke-linecap="round" opacity=".8" fill="none"/><circle cx="60" cy="23" r="1.6" fill="#ffe9bd"/><path d="M52 8 L68 8 L66 15 L54 15 Z" fill="#08101f"/><path d="M52 8 L68 8 L66 15 L54 15 Z" stroke="#7edcff" stroke-width="5" opacity=".18" fill="none"/><path d="M52 8 L68 8 L66 15 L54 15 Z" stroke="#aaf5ff" stroke-width="1.5" opacity=".9" fill="none"/><circle cx="60" cy="10.5" r="4.2" fill="#aaf5ff" opacity=".25"/><circle cx="60" cy="10.5" r="2.5" fill="#ffffff"/><path d="M54 14 L51 19 M66 14 L69 19" stroke="#aaf5ff" stroke-width="1.4" stroke-linecap="round" opacity=".9"/><path d="M55.5 15 L60 24 L64.5 15 Z" fill="#7edcff" opacity=".14"/><path d="M56.5 15 L60 21 L63.5 15 Z" fill="#d9fbff" opacity=".45"/><path d="M57.5 15 L60 18.5 L62.5 15 Z" fill="#ffffff"/><g><rect x="90" y="13" width="28" height="5" rx="2.5" fill="#08101f"/><rect x="91" y="14" width="12" height="3" rx="1.5" fill="#aaf5ff" opacity=".5"/><rect x="103.5" y="14" width="12" height="3" rx="1.5" fill="#ff2bd6" opacity=".25"/><line x1="103.5" y1="11.5" x2="103.5" y2="19.5" stroke="#ffd166" stroke-width="1.2" opacity=".9"/><rect x="97.5" y="9.5" width="1.6" height="12" rx=".8" fill="#ffffff"/></g></svg></div>
     </section>
   </main>
 
@@ -68,6 +69,17 @@
       var thrustGain = null;
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+      var bgGrad = null, vigGrad = null;
+
+      // APEX palette: cyan player/track, amber target/score, magenta threat, white hot core
+      var C_CYAN = [1, 205, 250];
+      var C_ICE = [170, 245, 255];
+      var C_AMB = [255, 209, 102];
+      var C_MAG = [255, 43, 214];
+      var C_WHT = [255, 255, 255];
+      function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+      function mixc(a, b, t) { return [a[0] + (b[0] - a[0]) * t | 0, a[1] + (b[1] - a[1]) * t | 0, a[2] + (b[2] - a[2]) * t | 0]; }
+
       var GRAVITY0 = 300, THRUST = 780, SAFE_V = 140, MAX_V = 420;
       var gravity = GRAVITY0;
       var thrusting = false;
@@ -92,6 +104,10 @@
         W = window.innerWidth; H = window.innerHeight;
         canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        bgGrad = ctx.createRadialGradient(W / 2, H * .35, 0, W / 2, H * .35, Math.hypot(W, H) * .8);
+        bgGrad.addColorStop(0, '#0a1634'); bgGrad.addColorStop(.55, '#050a1a'); bgGrad.addColorStop(1, '#020308');
+        vigGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.min(W, H) * .72);
+        vigGrad.addColorStop(0, 'rgba(0,0,0,0)'); vigGrad.addColorStop(1, 'rgba(0,0,0,.62)');
         terrainY = H - Math.max(96, H * 0.15);
         stars = [];
         var n = Math.round(Math.min(130, W * H / 9000));
@@ -212,11 +228,12 @@
         var pts = 15 + Math.max(0, softBonus) + Math.max(0, centerBonus);
         score += pts;
         setScore();
-        showToast('Touchdown +' + pts, colors.cyan);
+        showToast('Touchdown +' + pts, '#ffd166');
         touchdownSound();
         var top = padTopY();
-        burst(pad.x, top - 4, colors.muted, 10, 90);
-        rings.push({ x: lander.x, y: top - 6, r: 8, life: 1, color: colors.cyan });
+        burst(pad.x, top - 4, C_AMB, 10, 90);
+        burst(pad.x, top - 4, C_WHT, 5, 80);
+        rings.push({ x: lander.x, y: top - 6, r: 8, life: 1, color: C_AMB });
         thrusting = false;
         thrustStop();
         state = 'landed';
@@ -233,9 +250,9 @@
         shake = reduced ? 0 : 14;
         flash = .3;
         var surf = surfaceY(lander.x);
-        burst(lander.x, surf - 8, colors.coral, Math.min(60, Math.round(24 + lander.vy * 0.06)), 260);
-        burst(lander.x, surf - 8, colors.ink, 18, 180);
-        rings.push({ x: lander.x, y: surf - 10, r: 10, life: 1, color: colors.coral });
+        burst(lander.x, surf - 8, C_MAG, Math.min(60, Math.round(24 + lander.vy * 0.06)), 260);
+        burst(lander.x, surf - 8, C_WHT, 14, 200);
+        rings.push({ x: lander.x, y: surf - 10, r: 10, life: 1, color: C_MAG });
         setTimeout(endGame, 750);
       }
       function endGame() {
@@ -284,10 +301,32 @@
         ctx.arcTo(x, y, x + w, y, r);
         ctx.closePath();
       }
+      function drawGrid() {
+        var sp = 64;
+        var mn = new Path2D(), mj = new Path2D();
+        var i, x, y;
+        for (i = 0; i <= W / sp + 1; i++) {
+          x = i * sp;
+          if (i % 5 === 0) { mj.moveTo(x, 0); mj.lineTo(x, H); }
+          else { mn.moveTo(x, 0); mn.lineTo(x, H); }
+        }
+        for (i = 0; i <= H / sp + 1; i++) {
+          y = i * sp;
+          if (i % 5 === 0) { mj.moveTo(0, y); mj.lineTo(W, y); }
+          else { mn.moveTo(0, y); mn.lineTo(W, y); }
+        }
+        ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(40,130,255,.06)'; ctx.stroke(mn);
+        ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(90,170,255,.12)'; ctx.stroke(mj);
+      }
       function drawBackground(t) {
         ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, W, H);
         ctx.save();
         if (shake) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+
+        // faint blue grid
+        drawGrid();
 
         // stars with parallax drift + twinkle
         for (var i = 0; i < stars.length; i++) {
@@ -300,58 +339,94 @@
         }
         ctx.globalAlpha = 1;
 
-        // distant ridges
-        ctx.fillStyle = colors.ink;
-        ctx.globalAlpha = .07;
-        ctx.beginPath(); ctx.moveTo(0, terrainY);
-        for (var x = 0; x <= W; x += 24) {
-          ctx.lineTo(x, terrainY - 30 - Math.sin(x * 0.011 + 1.7) * 24 - Math.sin(x * 0.004 + .5) * 16);
-        }
-        ctx.lineTo(W, terrainY); ctx.closePath(); ctx.fill();
-        ctx.globalAlpha = .10;
-        ctx.beginPath(); ctx.moveTo(0, terrainY);
-        for (var x2 = 0; x2 <= W; x2 += 24) {
-          ctx.lineTo(x2, terrainY - 14 - Math.sin(x2 * 0.017 + 4.2) * 12);
-        }
-        ctx.lineTo(W, terrainY); ctx.closePath(); ctx.fill();
-        ctx.globalAlpha = 1;
-
-        // terrain silhouette
-        var th = H - terrainY;
-        ctx.fillStyle = colors.ink;
-        ctx.globalAlpha = .22;
-        ctx.fillRect(0, terrainY, W, th);
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = colors.muted;
-        ctx.fillRect(0, terrainY, W, 2);
-
+        drawRidge();
         drawPad(t);
         if (state === 'playing' || state === 'landed' || state === 'ready') drawLander();
         if (state === 'playing') drawGauge();
         ctx.restore();
       }
+      function drawRidge() {
+        // distant ridges behind the ground
+        ctx.fillStyle = colors.ink;
+        ctx.globalAlpha = .05;
+        ctx.beginPath(); ctx.moveTo(0, terrainY);
+        for (var x = 0; x <= W; x += 20) {
+          ctx.lineTo(x, terrainY - 34 - Math.sin(x * 0.011 + 1.7) * 26 - Math.sin(x * 0.004 + .5) * 15);
+        }
+        ctx.lineTo(W, terrainY); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = .08;
+        ctx.beginPath(); ctx.moveTo(0, terrainY);
+        for (var x2 = 0; x2 <= W; x2 += 20) {
+          ctx.lineTo(x2, terrainY - 16 - Math.sin(x2 * 0.017 + 4.2) * 13);
+        }
+        ctx.lineTo(W, terrainY); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // ground slab: near-opaque dark surface
+        ctx.fillStyle = '#040814';
+        ctx.fillRect(0, terrainY, W, H - terrainY);
+
+        // lit top edge: stacked-stroke glow, cyan track
+        ctx.beginPath(); ctx.moveTo(0, terrainY + .5); ctx.lineTo(W, terrainY + .5);
+        ctx.lineWidth = 5; ctx.strokeStyle = rgba(C_CYAN, .07); ctx.stroke();
+        ctx.lineWidth = 2.4; ctx.strokeStyle = rgba(C_CYAN, .2); ctx.stroke();
+        ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(mixc(C_CYAN, C_WHT, .4), .85); ctx.stroke();
+      }
       function drawPad(t) {
         var pw = pad.w, ph = PAD_H;
         var px = pad.x - pw / 2, py = terrainY - ph;
-        var pulse = .75 + .25 * Math.sin(t / 300);
         ctx.save();
-        ctx.shadowColor = colors.cyan;
-        ctx.shadowBlur = 16 * pulse;
-        ctx.fillStyle = colors.cyan;
-        roundRectPath(px, py, pw, ph, 5);
+        ctx.lineJoin = 'round';
+
+        // flat amber pad: dark base slab
+        ctx.fillStyle = '#181008';
+        roundRectPath(px, py, pw, ph, 4);
         ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = colors.paper;
-        ctx.globalAlpha = .85;
-        for (var i = 0; i < 3; i++) {
-          var sx = pad.x - pw / 4 + (i - 1) * pw / 4;
-          ctx.fillRect(sx - 2, py + 2, 4, ph - 4);
-        }
+
+        // amber multi-pass glow outline
+        roundRectPath(px, py, pw, ph, 4);
+        ctx.lineWidth = 7; ctx.strokeStyle = rgba(C_AMB, .07); ctx.stroke();
+        ctx.lineWidth = 3; ctx.strokeStyle = rgba(C_AMB, .2); ctx.stroke();
+        ctx.lineWidth = 1.4; ctx.strokeStyle = rgba(mixc(C_AMB, C_WHT, .3), .9); ctx.stroke();
+
+        // amber face with a soft pulse
+        ctx.globalAlpha = .18 + .08 * Math.sin(t / 300);
+        ctx.fillStyle = rgba(C_AMB, 1);
+        roundRectPath(px + 3, py + 1, pw - 6, ph - 3, 2.5);
+        ctx.fill();
         ctx.globalAlpha = 1;
-        // beacon dots at pad ends
-        ctx.fillStyle = colors.lime;
-        ctx.beginPath(); ctx.arc(px - 7, terrainY - 3, 2.4, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(px + pw + 7, terrainY - 3, 2.4, 0, Math.PI * 2); ctx.fill();
+
+        // bright top edge
+        ctx.lineWidth = 1.6; ctx.strokeStyle = rgba(mixc(C_AMB, C_WHT, .5), .95);
+        ctx.beginPath(); ctx.moveTo(px + 3, py + 1.4); ctx.lineTo(px + pw - 3, py + 1.4); ctx.stroke();
+
+        // apex dots at both ends: amber halo with white-hot core
+        for (var e = 0; e < 2; e++) {
+          var ax = e === 0 ? px - 7 : px + pw + 7;
+          var ay = terrainY - 3;
+          ctx.globalAlpha = .12; ctx.fillStyle = rgba(C_AMB, 1);
+          ctx.beginPath(); ctx.arc(ax, ay, 6, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = .3;
+          ctx.beginPath(); ctx.arc(ax, ay, 3.4, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = rgba(mixc(C_AMB, C_WHT, .6), 1);
+          ctx.beginPath(); ctx.arc(ax, ay, 2, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // dashed descent guide above the pad
+        var guideH = 72;
+        ctx.lineCap = 'round';
+        ctx.setLineDash([4, 7]);
+        ctx.lineDashOffset = -((t / 28) % 11);
+        ctx.lineWidth = 3; ctx.strokeStyle = rgba(C_AMB, .12);
+        ctx.beginPath(); ctx.moveTo(pad.x, py); ctx.lineTo(pad.x, py - guideH); ctx.stroke();
+        ctx.lineWidth = 1.4; ctx.strokeStyle = rgba(C_AMB, .75);
+        ctx.beginPath(); ctx.moveTo(pad.x, py); ctx.lineTo(pad.x, py - guideH); ctx.stroke();
+        ctx.lineDashOffset = 0; ctx.setLineDash([]);
+
+        // guide top marker
+        ctx.fillStyle = rgba(mixc(C_AMB, C_WHT, .5), 1);
+        ctx.beginPath(); ctx.arc(pad.x, py - guideH, 1.8, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
       function drawLander() {
@@ -360,64 +435,100 @@
         ctx.translate(x, y);
         var wob = thrusting && state === 'playing' ? Math.sin(performance.now() / 40) * 1.2 : 0;
         ctx.rotate(wob * .02);
-        // legs
-        ctx.strokeStyle = colors.ink; ctx.lineWidth = 3; ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(-8, 4); ctx.lineTo(-14, 16);
-        ctx.moveTo(8, 4); ctx.lineTo(14, 16);
-        ctx.moveTo(-18, 16); ctx.lineTo(-10, 16);
-        ctx.moveTo(10, 16); ctx.lineTo(18, 16);
-        ctx.stroke();
-        // body
-        ctx.fillStyle = colors.paper;
-        ctx.strokeStyle = colors.ink;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(-11, -10); ctx.lineTo(11, -10);
-        ctx.lineTo(14, 8); ctx.lineTo(-14, 8);
-        ctx.closePath();
-        ctx.fill(); ctx.stroke();
-        // window
-        ctx.fillStyle = colors.cyan;
-        ctx.beginPath(); ctx.arc(0, -2, 4.5, 0, Math.PI * 2); ctx.fill();
-        // flame
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // legs: cyan track strokes with a faint glow pass
+        var legs = new Path2D();
+        legs.moveTo(-8, 4); legs.lineTo(-14, 16);
+        legs.moveTo(8, 4); legs.lineTo(14, 16);
+        legs.moveTo(-18, 16); legs.lineTo(-10, 16);
+        legs.moveTo(10, 16); legs.lineTo(18, 16);
+        ctx.lineWidth = 5; ctx.strokeStyle = rgba(C_CYAN, .12); ctx.stroke(legs);
+        ctx.lineWidth = 1.6; ctx.strokeStyle = rgba(C_CYAN, .9); ctx.stroke(legs);
+
+        // body: dark ship fill with a cyan multi-pass glow outline
+        var body = new Path2D();
+        body.moveTo(-11, -10); body.lineTo(11, -10);
+        body.lineTo(14, 8); body.lineTo(-14, 8);
+        body.closePath();
+        ctx.fillStyle = '#08101f';
+        ctx.fill(body);
+        ctx.lineWidth = 6; ctx.strokeStyle = rgba(C_CYAN, .07); ctx.stroke(body);
+        ctx.lineWidth = 2.6; ctx.strokeStyle = rgba(C_CYAN, .2); ctx.stroke(body);
+        ctx.lineWidth = 1.3; ctx.strokeStyle = rgba(mixc(C_CYAN, C_WHT, .45), .95); ctx.stroke(body);
+
+        // window: white-hot core over a cyan halo
+        ctx.globalAlpha = .16; ctx.fillStyle = rgba(C_CYAN, 1);
+        ctx.beginPath(); ctx.arc(0, -2, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(255,255,255,.95)';
+        ctx.beginPath(); ctx.arc(0, -2, 3.2, 0, Math.PI * 2); ctx.fill();
+
+        // flame: white-hot core with a cyan glow and flicker
         if (thrusting && state === 'playing') {
-          var fl = 16 + Math.random() * 16;
-          var g = ctx.createLinearGradient(0, 8, 0, 8 + fl);
-          g.addColorStop(0, '#fff7d6');
-          g.addColorStop(.45, colors.coral);
-          g.addColorStop(1, 'rgba(233,93,69,0)');
-          ctx.fillStyle = g;
+          var fl = 15 + Math.random() * 15;
+          ctx.globalAlpha = .08; ctx.fillStyle = rgba(C_CYAN, 1);
           ctx.beginPath();
-          ctx.moveTo(-7, 8); ctx.lineTo(0, 8 + fl); ctx.lineTo(7, 8);
+          ctx.moveTo(-10, 8); ctx.lineTo(0, 8 + fl + 7); ctx.lineTo(10, 8);
+          ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = .2;
+          ctx.beginPath();
+          ctx.moveTo(-8, 8); ctx.lineTo(0, 8 + fl + 3); ctx.lineTo(8, 8);
+          ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = 'rgba(255,255,255,.95)';
+          ctx.beginPath();
+          ctx.moveTo(-5, 8); ctx.lineTo(0, 8 + fl); ctx.lineTo(5, 8);
           ctx.closePath(); ctx.fill();
         }
         ctx.restore();
       }
       function drawGauge() {
-        var gx = W - 30, gy = H * 0.30, gh = H * 0.26, gw = 8;
+        var gw = 80, gh = 7;
+        var gx = W - 110, gy = H * 0.30;
         var frac = Math.max(0, Math.min(1, lander.vy / MAX_V));
         var safeFrac = SAFE_V / MAX_V;
-        var tooFast = lander.vy > SAFE_V;
         ctx.save();
-        ctx.textAlign = 'center';
+        ctx.textAlign = 'left';
         ctx.fillStyle = colors.muted;
         ctx.font = '500 10px DM Mono, monospace';
-        ctx.fillText('VEL', gx + gw / 2, gy - 10);
-        // track
-        ctx.fillStyle = colors.line;
-        roundRectPath(gx, gy, gw, gh, 4); ctx.fill();
-        // safe zone
-        ctx.fillStyle = colors.cyan;
-        ctx.globalAlpha = .3;
-        ctx.fillRect(gx, gy, gw, safeFrac * gh);
+        ctx.fillText('VEL', gx, gy - 8);
+
+        // track: near-opaque dark slab with a faint edge
+        ctx.fillStyle = '#040814';
+        roundRectPath(gx, gy, gw, gh, 3.5); ctx.fill();
+        ctx.lineWidth = 1; ctx.strokeStyle = rgba(C_CYAN, .16);
+        roundRectPath(gx, gy, gw, gh, 3.5); ctx.stroke();
+
+        // segmented safe zone (cyan) and danger zone (magenta)
+        var segs = 12;
+        for (var i = 0; i < segs; i++) {
+          var s0 = i / segs, s1 = (i + 1) / segs;
+          if (s0 < safeFrac) {
+            var a = Math.max(s0, 0), b = Math.min(s1, safeFrac);
+            ctx.globalAlpha = .5;
+            ctx.fillStyle = rgba(C_CYAN, 1);
+            ctx.fillRect(gx + a * gw + 1, gy + 1.5, Math.max(0, (b - a) * gw - 2), gh - 3);
+          }
+        }
+        ctx.globalAlpha = .4;
+        ctx.fillStyle = rgba(C_MAG, 1);
+        ctx.fillRect(gx + safeFrac * gw + 1, gy + 1.5, gw - safeFrac * gw - 2, gh - 3);
         ctx.globalAlpha = 1;
-        // threshold line
-        ctx.fillStyle = colors.cyan;
-        ctx.fillRect(gx - 3, gy + safeFrac * gh - 1, gw + 6, 2);
-        // fill
-        ctx.fillStyle = tooFast ? colors.coral : colors.cyan;
-        roundRectPath(gx, gy, gw, Math.max(3, frac * gh), 4); ctx.fill();
+
+        // threshold tick: amber at the safe/danger boundary
+        ctx.fillStyle = rgba(C_AMB, .95);
+        ctx.fillRect(gx + safeFrac * gw - 1, gy - 4, 2, gh + 8);
+
+        // needle: white core on a cyan glow, slides with velocity
+        var nx = gx + frac * gw;
+        ctx.globalAlpha = .14; ctx.fillStyle = rgba(C_CYAN, 1);
+        ctx.fillRect(nx - 3, gy - 9, 6, gh + 16);
+        ctx.globalAlpha = .3; ctx.fillStyle = rgba(C_ICE, 1);
+        ctx.fillRect(nx - 1.5, gy - 9, 3, gh + 16);
+        ctx.globalAlpha = 1; ctx.fillStyle = 'rgba(255,255,255,1)';
+        ctx.fillRect(nx - .75, gy - 9, 1.5, gh + 16);
         ctx.restore();
       }
       function updateEffects(dt) {
@@ -440,16 +551,24 @@
         for (var i = 0; i < particles.length; i++) {
           var p = particles[i];
           ctx.globalAlpha = Math.max(0, p.life);
-          ctx.fillStyle = p.color;
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = rgba(p.color, Math.max(0, p.life));
+          var s = Math.max(.6, p.size * p.life);
+          ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
         }
         for (var j = 0; j < rings.length; j++) {
           var r = rings[j];
-          ctx.globalAlpha = Math.max(0, r.life);
-          ctx.strokeStyle = r.color; ctx.lineWidth = 2;
+          ctx.setLineDash([5, 7]);
+          ctx.lineWidth = 2.4 * r.life + .4;
+          ctx.strokeStyle = rgba(r.color, .9);
           ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
         }
-        if (flash) { ctx.globalAlpha = flash * .5; ctx.fillStyle = colors.coral; ctx.fillRect(0, 0, W, H); }
+        ctx.globalAlpha = 1;
+        // black edge vignette
+        ctx.fillStyle = vigGrad;
+        ctx.fillRect(0, 0, W, H);
+        if (flash) { ctx.globalAlpha = flash * .5; ctx.fillStyle = rgba(C_MAG, 1); ctx.fillRect(0, 0, W, H); }
+        ctx.globalAlpha = 1;
         ctx.restore();
       }
       function update(dt) {
@@ -484,7 +603,7 @@
             particles.push({
               x: lander.x + rand(-5, 5), y: lander.y + 12,
               vx: rand(-30, 30), vy: rand(120, 240),
-              life: 1, size: rand(2, 4), color: Math.random() > .4 ? colors.coral : colors.lime
+              life: 1, size: rand(2, 4), color: Math.random() > .5 ? C_CYAN : C_WHT
             });
           }
         }
