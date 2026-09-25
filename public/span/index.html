@@ -87,7 +87,7 @@
     }
     // state
     let pillars=[],beams=[],beam=null,cur=0,cam=0,camT=0,st='idle',score=0;
-    let px=0,py=0,pvy=0,target=0,fail=false,failT=0,shake=0,pops=[],bob=0,stars=[],bonus=0,texts=[];
+    let px=0,py=0,pvy=0,target=0,fail=false,failT=0,shake=0,pops=[],bob=0,stars=[],bonus=0,streak=0,texts=[];
     function newPillar(){
       const p=pillars[pillars.length-1],hard=Math.min(score/10,1);
       const w=rand(62-hard*26,110-hard*40);
@@ -96,7 +96,7 @@
       pillars.push({x:p.x+p.w+gap,w});
     }
     function reset(){
-      pillars=[{x:0,w:W*.3}];beams=[];beam=null;cur=0;score=0;fail=false;failT=0;pops=[];bonus=0;texts=[];
+      pillars=[{x:0,w:W*.3}];beams=[];beam=null;cur=0;score=0;fail=false;failT=0;pops=[];bonus=0;streak=0;texts=[];
       newPillar();
       cam=pillars[0].x+pillars[0].w-W*.3;camT=cam;
       px=pillars[0].x+pillars[0].w-12;py=0;pvy=0;st='ready';
@@ -153,8 +153,10 @@
           if(fail){st='drop';failT=0;pvy=0;beam.av=2;tone(260,.5,'sawtooth',.05,0);}
           else{
             const n=pillars[cur+1];
-            score+=1+bonus;
+            if(bonus>0)streak++;else streak=0;
+            score+=1+bonus+streak;
             if(bonus){pops.push({x:n.x,r:4,a:1});texts.push({x:n.x,y:GY,t:0,g:bonus});tone(1320,.16,'triangle',.05,.06);}
+            if(streak>=2)texts.push({x:n.x,y:GY-46,t:0,g:'STREAK x'+streak});
             bonus=0;
             cur++;beams.push(beam);beam=null;
             const m=pillars[cur];
@@ -260,10 +262,11 @@
     }
     function drawTexts(){
       for(const t of texts){
-        const e=1-(1-t.t)*(1-t.t),a=t.t<.6?1:1-(t.t-.6)/.4,big=t.g===3,label='PERFECT +'+(big?4:3);
+        const e=1-(1-t.t)*(1-t.t),a=t.t<.6?1:1-(t.t-.6)/.4,isStreak=typeof t.g==='string';
+        const big=!isStreak&&t.g===3,label=isStreak?t.g:'PERFECT +'+(big?4:3);
         cx.save();cx.globalAlpha=a;cx.textAlign='center';cx.textBaseline='middle';
-        cx.font='700 '+(big?26:20)+'px "DM Mono",ui-monospace,Menlo,monospace';
-        cx.strokeStyle=rgba(C_AMB,.08);cx.lineWidth=big?10:8;cx.strokeText(label,t.x,t.y-54-e*36);
+        cx.font='700 '+(isStreak?18:big?26:20)+'px "DM Mono",ui-monospace,Menlo,monospace';
+        cx.strokeStyle=rgba(C_AMB,.08);cx.lineWidth=isStreak?6:big?10:8;cx.strokeText(label,t.x,t.y-54-e*36);
         cx.fillStyle=rgba(mixc(C_AMB,C_WHT,.5),1);cx.fillText(label,t.x,t.y-54-e*36);
         cx.restore();
       }
