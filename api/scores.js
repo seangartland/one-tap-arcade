@@ -21,8 +21,8 @@ const HIST_EDGES = {
   dodge:    [0, 5, 10, 15, 20, 30, 40, 50, 60, 75, 90, 110, 140, 180, Infinity],
   lanes:    [0, 5, 10, 15, 20, 28, 36, 46, 58, 72, 90, 115, 150, 200, Infinity],
   meteor:   [0, 5, 10, 15, 25, 35, 50, 65, 85, 110, 140, 180, 230, 300, Infinity],
-  pin:      [0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, Infinity],
-  span:     [0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, Infinity],
+  pin:      [0, 5, 10, 15, 20, 30, 40, 48, 56, 64, 72, 80, 90, 100, Infinity],
+  span:     [0, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, Infinity],
 };
 function histBin(score, game) {
   const edges = HIST_EDGES[game] || HIST_EDGES.pulse;

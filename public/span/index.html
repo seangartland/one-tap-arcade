@@ -110,16 +110,16 @@
     }
     // state
     let pillars=[],beams=[],beam=null,cur=0,cam=0,camT=0,st='idle',score=0;
-    let px=0,py=0,pvy=0,target=0,fail=false,failT=0,shake=0,pops=[],bob=0,stars=[];
+    let px=0,py=0,pvy=0,target=0,fail=false,failT=0,shake=0,pops=[],bob=0,stars=[],bonus=0,texts=[];
     function newPillar(){
-      const p=pillars[pillars.length-1],hard=Math.min(score/25,1);
+      const p=pillars[pillars.length-1],hard=Math.min(score/10,1);
       const w=rand(62-hard*26,110-hard*40);
-      let gap=rand(W*.1+hard*W*.06,W*.36+hard*W*.12);
+      let gap=rand(W*.08+hard*W*.06,W*.36+hard*W*.12);
       gap=Math.min(gap,W*.66-w);
       pillars.push({x:p.x+p.w+gap,w});
     }
     function reset(){
-      pillars=[{x:0,w:W*.3}];beams=[];beam=null;cur=0;score=0;fail=false;failT=0;pops=[];
+      pillars=[{x:0,w:W*.3}];beams=[];beam=null;cur=0;score=0;fail=false;failT=0;pops=[];bonus=0;texts=[];
       newPillar();
       cam=pillars[0].x+pillars[0].w-W*.3;camT=cam;
       px=pillars[0].x+pillars[0].w-12;py=0;pvy=0;st='ready';
@@ -157,15 +157,16 @@
     }
     function update(dt){
       bob+=dt;
-      cam+=(camT-cam)*Math.min(1,dt*6);
+      cam+=(camT-cam)*Math.min(1,dt*9);
       if(st==='grow'){
-        beam.len=Math.min(beam.len+(260+beam.len*.5)*dt,W*1.1);humSet(170+beam.len*2.2);
+        beam.len=Math.min(beam.len+1.6*(260+beam.len*.5)*dt,W*1.1);humSet(170+beam.len*2.2);
       }else if(st==='tip'){
-        beam.av+=16*dt;beam.ang+=beam.av*dt;
+        beam.av+=24*dt;beam.ang+=beam.av*dt;
         if(beam.ang>=0){
           beam.ang=0;shake=5;tone(90,.16,'sine',.09,0);
-          const n=pillars[cur+1],tip=beam.x+beam.len,tol=12;
+          const n=pillars[cur+1],tip=beam.x+beam.len,tol=12,mid=n.x+n.w/2,off=Math.abs(tip-mid);
           fail=!(tip>=n.x-tol&&tip<=n.x+n.w+tol);
+          bonus=fail?0:(off<=n.w*.04?3:off<=n.w*.10?2:0);
           target=fail?tip:n.x+n.w-12;
           st='walk';
         }
@@ -174,11 +175,15 @@
         if(px>=target){
           if(fail){st='drop';failT=0;pvy=0;beam.av=2;tone(260,.5,'sawtooth',.05,0);}
           else{
-            score++;cur++;beams.push(beam);beam=null;
-            const n=pillars[cur];
-            pops.push({x:n.x+n.w/2,r:4,a:1});
+            const n=pillars[cur+1];
+            score+=1+bonus;
+            if(bonus){pops.push({x:n.x+n.w/2,r:4,a:1});texts.push({x:n.x+n.w/2,y:GY,t:0,g:bonus});tone(1320,.16,'triangle',.05,.06);}
+            bonus=0;
+            cur++;beams.push(beam);beam=null;
+            const m=pillars[cur];
+            pops.push({x:m.x+m.w/2,r:4,a:1});
             tone(660,.08,'triangle',.05,0);tone(990,.12,'triangle',.045,.07);
-            newPillar();camT=n.x+n.w-W*.3;st='pan';
+            newPillar();camT=m.x+m.w-W*.3;st='pan';
             checkPhase();
           }
         }
@@ -192,6 +197,8 @@
       }
       for(const p of pops){p.r+=180*dt;p.a-=dt*2;}
       pops=pops.filter(p=>p.a>0);
+      for(const t of texts)t.t+=dt;
+      texts=texts.filter(t=>t.t<1);
     }
     function glowLine(x0,y0,x1,y1,col,w){
       cx.strokeStyle=col;cx.lineCap='round';
@@ -224,6 +231,15 @@
         cx.fillStyle='#fff';cx.beginPath();cx.arc(ex,ey,2.5,0,TWO);cx.fill();cx.shadowBlur=0;
       }
       for(const p of pops){cx.globalAlpha=p.a;cx.strokeStyle=colors.cyan;cx.lineWidth=2;cx.beginPath();cx.arc(p.x,GY,p.r,Math.PI,TWO);cx.stroke();}
+      for(const t of texts){
+        const e=1-(1-t.t)*(1-t.t),a=t.t<.6?1:1-(t.t-.6)/.4,big=t.g===3;
+        cx.globalAlpha=a;cx.textAlign='center';cx.textBaseline='middle';
+        cx.font='700 '+(big?26:20)+'px "DM Mono",ui-monospace,Menlo,monospace';
+        cx.shadowColor=big?colors.lime:colors.cyan;cx.shadowBlur=14;
+        cx.fillStyle=big?colors.lime:colors.cyan;
+        cx.fillText('PERFECT +'+(big?4:3),t.x,t.y-54-e*36);
+        cx.shadowBlur=0;
+      }
       cx.globalAlpha=1;
       // runner
       if(st!=='idle'){

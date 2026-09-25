@@ -94,12 +94,15 @@
     let pins=[],rot=0,el=0,score=0;
     let fly=null,load=1,running=false,over=false,hitstop=0,dead=null,deadT=0;
     let pulse=0,shake=0,flash=0,near=0,waves=[];
+    const PIN_CAP=12,ODEJ=.38,REV_DUR=1.15;
+    let spinDir=1,revT=rand(6,9),revD=0,revFlash=0;
     function reset(){
       pins=[];rot=0;el=0;score=0;fly=null;load=1;hitstop=0;dead=null;deadT=0;pulse=0;shake=0;flash=0;near=0;waves=[];
+      spinDir=1;revT=rand(6,9);revD=0;revFlash=0;
       const b=rand(0,TWO);
       for(let i=0;i<4;i++)pins.push({a:b+i*TWO/4+rand(-.35,.35),glow:0,bad:0});
     }
-    function speed(){return Math.min(1.25+el*.028,3.4)*(.86+.14*Math.sin(el*.9));}
+    function speed(){return Math.min(1.25+el*.028,4.2)*(.86+.14*Math.sin(el*.9));}
     function thr(){return 2*Math.asin(Math.min(1,(HR+1.5)/(R+L)));}
     function angDiff(a,b){let d=((a-b)%TWO+TWO)%TWO;return d>Math.PI?TWO-d:d;}
     function checkPhase(){
@@ -121,6 +124,7 @@
         return;
       }
       pins.push({a,glow:1,bad:0});score++;pulse=1;
+      if(pins.length>PIN_CAP){const old=pins[0];old.dieT=ODEJ;waves.push({r:R*.45,a:.55});}
       waves.push({r:R,a:1});
       if(min<t*2.1){near=1;shake=4;tone(1180,.09,'square',.03,0);}
       else tone(880,.07,'triangle',.05,0);
@@ -147,7 +151,13 @@
       if(!running)return;
       if(hitstop>0){hitstop-=dt;return;}
       el+=dt;
-      if(!dead)rot+=speed()*dt;
+      if(!dead){
+        rot+=spinDir*speed()*dt;
+        if(Arcade.phase()>=3){
+          if(revD>0){revD-=dt;if(revD<=0){spinDir=-spinDir;revT=rand(6,9);}}
+          else{revT-=dt;if(revT<=0){spinDir=-spinDir;revD=REV_DUR;revFlash=1;}}
+        }
+      }
       if(load<1)load=Math.min(1,load+dt*7);
       if(fly){
         fly.y-=2300*dt;
@@ -158,20 +168,24 @@
         if(deadT>.75)end();
       }
       for(const p of pins)p.glow=Math.max(0,p.glow-dt*3);
+      for(const p of pins){if(p.dieT!==undefined)p.dieT-=dt;}
+      pins=pins.filter(p=>p.dieT===undefined||p.dieT>0);
       for(const w of waves){w.r+=260*dt;w.a-=dt*2.4;}
       waves=waves.filter(w=>w.a>0);
     }
-    function pinPath(x0,y0,x1,y1,col,glow){
+    function pinPath(x0,y0,x1,y1,col,glow,a){
+      const al=a===undefined?1:a;
       cx.strokeStyle=col;cx.lineCap='round';
-      cx.globalAlpha=.25;cx.lineWidth=7;cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke();
-      cx.globalAlpha=1;cx.lineWidth=2.2;cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke();
+      cx.globalAlpha=.25*al;cx.lineWidth=7;cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke();
+      cx.globalAlpha=al;cx.lineWidth=2.2;cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke();
       cx.shadowColor=col;cx.shadowBlur=12+glow*20;
       cx.fillStyle=glow>0?mix(col,glow):col;cx.beginPath();cx.arc(x1,y1,HR,0,TWO);cx.fill();
-      cx.shadowBlur=0;
+      cx.shadowBlur=0;cx.globalAlpha=1;
     }
     function mix(col,t){return t>.5?'#ffffff':col;}
     function draw(){
       const fx=flash;flash=Math.max(0,flash-.04);
+      const revF=revFlash;revFlash=Math.max(0,revFlash-.06);
       const sx=shake?rand(-shake,shake):0,sy=shake?rand(-shake,shake):0;shake=Math.max(0,shake*.86-.1);
       cx.fillStyle='#05070f';cx.fillRect(0,0,W,H);
       const g=cx.createRadialGradient(CX,CY,0,CX,CY,Math.max(W,H)*.7);
@@ -184,19 +198,19 @@
       // stuck pins
       for(const p of pins){
         const a=p.a+rot,c=Math.cos(a),s=Math.sin(a);
-        pinPath(CX+c*R,CY+s*R,CX+c*(R+L),CY+s*(R+L),p.bad&&(hitstop>0||dead)?colors.coral:colors.cyan,p.glow);
+        pinPath(CX+c*R,CY+s*R,CX+c*(R+L),CY+s*(R+L),p.bad&&(hitstop>0||dead)?colors.coral:colors.cyan,p.glow,p.dieT!==undefined?Math.max(0,p.dieT/ODEJ):1);
       }
       // waves
       for(const w of waves){cx.globalAlpha=w.a*.6;cx.strokeStyle=colors.cyan;cx.lineWidth=2;cx.beginPath();cx.arc(CX,CY,w.r,0,TWO);cx.stroke();}
       cx.globalAlpha=1;
       // core
       pulse=Math.max(0,pulse-.08);
-      const cr=R*(1+pulse*.07),coreCol=fx>0?colors.coral:colors.cyan;
+      const cr=R*(1+pulse*.07),coreCol=revF>0?'#ffffff':(fx>0?colors.coral:colors.cyan);
       const cg=cx.createRadialGradient(CX,CY,0,CX,CY,cr*2.2);
       cg.addColorStop(0,fx>0?'rgba('+rgb(colors.coral)+',.35)':'rgba('+rgb(colors.cyan)+',.3)');cg.addColorStop(1,'rgba(0,0,0,0)');
       cx.fillStyle=cg;cx.beginPath();cx.arc(CX,CY,cr*2.2,0,TWO);cx.fill();
       cx.fillStyle='#071322';cx.beginPath();cx.arc(CX,CY,cr,0,TWO);cx.fill();
-      cx.shadowColor=coreCol;cx.shadowBlur=24;cx.strokeStyle=coreCol;cx.lineWidth=3;
+      cx.shadowColor=coreCol;cx.shadowBlur=revF>0?44:24;cx.strokeStyle=coreCol;cx.lineWidth=3;
       cx.beginPath();cx.arc(CX,CY,cr,0,TWO);cx.stroke();cx.shadowBlur=0;
       cx.strokeStyle='rgba('+rgb(colors.cyan)+',.35)';cx.lineWidth=1.5;
       for(let i=0;i<3;i++){const a=rot+i*TWO/3;cx.beginPath();cx.arc(CX,CY,cr*.72,a,a+.7);cx.stroke();}

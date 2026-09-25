@@ -211,7 +211,7 @@
     shareBtn.addEventListener('click', function (e) {
       e.stopPropagation();
       var u = getUser();
-      var shareName = (u && u.username) ? u.username : 'A rival';
+      var shareName = (u && u.username) ? u.username : 'RIVAL';
       var url = location.origin + location.pathname +
         '?c=' + encodeURIComponent(shareName) + '&s=' + pendingScore;
       var shareText = 'Can you beat my ' + pendingScore + ' on ' + displayName + '?';
@@ -246,7 +246,7 @@
     text.className = 'challenge-text';
     var nameEl = document.createElement('b');
     nameEl.className = 'challenge-name';
-    nameEl.textContent = c;
+    nameEl.textContent = (/^RIVAL$/i.test(c)) ? 'A rival' : c;
     var scoreEl = document.createElement('b');
     scoreEl.className = 'challenge-score';
     scoreEl.textContent = String(score);
