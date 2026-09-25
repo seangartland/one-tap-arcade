@@ -274,7 +274,7 @@
         ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 1.4; ctx.stroke(p);
       }
 
-      // amber gates framing the projected landing slot
+      // amber marker at the centre of the projected landing slot
       function landingGates() {
         var prev = stack[stack.length - 1];
         var m = mover;
@@ -283,15 +283,6 @@
         if (right - left <= 0) { left = prev.x; right = prev.x + prev.w; }
         var yt = stackTop() - bh;
         var x0 = left + 1, x1 = right - 1;
-        ctx.setLineDash([4, 5]);
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = rgba(C_AMB, .85);
-        ctx.beginPath();
-        ctx.moveTo(x0, yt); ctx.lineTo(x0, yt + bh);
-        ctx.moveTo(x1, yt); ctx.lineTo(x1, yt + bh);
-        ctx.moveTo(x0, yt); ctx.lineTo(x1, yt);
-        ctx.stroke();
-        ctx.setLineDash([]);
         ctx.fillStyle = rgba(C_AMB, .95);
         ctx.beginPath(); ctx.arc((x0 + x1) / 2, yt + bh / 2, 2, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = rgba(C_AMB, .25);

@@ -413,20 +413,6 @@
           ctx.beginPath(); ctx.arc(ax, ay, 2, 0, Math.PI * 2); ctx.fill();
         }
 
-        // dashed descent guide above the pad
-        var guideH = 72;
-        ctx.lineCap = 'round';
-        ctx.setLineDash([4, 7]);
-        ctx.lineDashOffset = -((t / 28) % 11);
-        ctx.lineWidth = 3; ctx.strokeStyle = rgba(C_AMB, .12);
-        ctx.beginPath(); ctx.moveTo(pad.x, py); ctx.lineTo(pad.x, py - guideH); ctx.stroke();
-        ctx.lineWidth = 1.4; ctx.strokeStyle = rgba(C_AMB, .75);
-        ctx.beginPath(); ctx.moveTo(pad.x, py); ctx.lineTo(pad.x, py - guideH); ctx.stroke();
-        ctx.lineDashOffset = 0; ctx.setLineDash([]);
-
-        // guide top marker
-        ctx.fillStyle = rgba(mixc(C_AMB, C_WHT, .5), 1);
-        ctx.beginPath(); ctx.arc(pad.x, py - guideH, 1.8, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
       function drawLander() {

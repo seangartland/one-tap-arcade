@@ -172,10 +172,6 @@
       let lo,hi;
       if(cl!==null){lo=cl;hi=ch;}else{lo=gl;hi=gh;}
       const ra=R+L,wl=lo+rot,wh=hi+rot;
-      cx.globalAlpha=.14;cx.strokeStyle=rgba(C_AMB,1);cx.lineWidth=5;cx.setLineDash([5,7]);
-      cx.beginPath();cx.arc(CX,CY,ra,wl,wh);cx.stroke();
-      cx.globalAlpha=.85;cx.strokeStyle=rgba(C_AMB,1);cx.lineWidth=1.6;cx.setLineDash([5,7]);
-      cx.beginPath();cx.arc(CX,CY,ra,wl,wh);cx.stroke();
       cx.setLineDash([]);
       cx.globalAlpha=.16;cx.fillStyle=rgba(C_AMB,1);
       cx.beginPath();cx.arc(CX,CY+ra,6,0,TWO);cx.fill();

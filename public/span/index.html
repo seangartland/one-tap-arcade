@@ -210,30 +210,6 @@
       }
       cx.globalAlpha=1;
     }
-    function drawVoidWave(){
-      const p=pillars[cur]||pillars[0],n=pillars[cur+1];
-      if(!p)return;
-      const left=Math.max(p.x+p.w-10,cam-80),right=Math.min(n?n.x+10:p.x+W,cam+W+80);
-      if(right-left<4)return;
-      const span=right-left,y=GY-18;
-      const haze=cx.createLinearGradient(0,GY-90,0,GY+8);
-      haze.addColorStop(0,rgba(C_MAG,0));haze.addColorStop(.68,rgba(C_MAG,.07));haze.addColorStop(1,rgba(C_MAG,.16));
-      cx.fillStyle=haze;cx.fillRect(left,GY-90,span,98);
-      for(let layer=0;layer<2;layer++){
-        const path=new Path2D();
-        for(let i=0;i<=14;i++){
-          const x=left+span*i/14,yy=y+layer*5+Math.sin(i*.9+bob*(1.4+layer*.35)+layer)*(4+layer*2);
-          if(i===0)path.moveTo(x,yy);else path.lineTo(x,yy);
-        }
-        stackPath(path,C_MAG,layer?1.3:1.5,layer?mixc(C_MAG,C_WHT,.24):mixc(C_MAG,C_WHT,.4));
-      }
-      for(let i=0;i<7;i++){
-        const x=left+(i*.173+.09)*span,yy=GY-9-((bob*11+i*19)%38),a=.25+.5*Math.abs(Math.sin(bob*2+i)),size=2+(i%3);
-        cx.globalAlpha=a*.22;cx.fillStyle=rgba(C_MAG,1);cx.fillRect(x-size*1.8,yy-size*1.8,size*3.6,size*3.6);
-        cx.globalAlpha=a*.9;cx.fillStyle=rgba(mixc(C_MAG,C_WHT,.35),1);cx.fillRect(x-size/2,yy-size/2,size,size);
-      }
-      cx.globalAlpha=1;
-    }
     function drawPlatforms(){
       for(let i=0;i<pillars.length;i++){
         const p=pillars[i];
@@ -248,28 +224,13 @@
     function drawTarget(){
       const n=pillars[cur+1];
       if(!n)return;
-      const x=n.x+n.w-12,gateH=Math.min(54,Math.max(24,GY*.16));
-      const guide=new Path2D();
-      guide.moveTo(x,GY-2);guide.lineTo(x,GY-gateH);
-      cx.setLineDash([4,6]);cx.lineWidth=6;cx.strokeStyle=rgba(C_AMB,.07);cx.stroke(guide);
-      cx.lineWidth=2.6;cx.strokeStyle=rgba(C_AMB,.2);cx.stroke(guide);
-      cx.lineWidth=1.3;cx.strokeStyle=rgba(C_AMB,.9);cx.stroke(guide);cx.setLineDash([]);
+      const x=n.x+n.w-12;
       const pulse=1+.1*Math.sin(bob*5);
       cx.fillStyle=rgba(C_AMB,.12*pulse);cx.fillRect(x-10,GY-2,20,4);
       glowLine(x-10,GY,x+10,GY,C_AMB,1.4,C_AMB,.95);
       const dot=new Path2D();dot.arc(x,GY,5.5*pulse,0,TWO);
       stackPath(dot,C_AMB,1.4,mixc(C_AMB,C_WHT,.35));
       cx.fillStyle=rgba(C_WHT,1);cx.beginPath();cx.arc(x,GY,1.5,0,TWO);cx.fill();
-    }
-    function drawReachArc(){
-      if(!beam||beam.len<2)return;
-      const end=st==='grow'?0:Math.max(-Math.PI/2,beam.ang),path=new Path2D();
-      path.arc(beam.x,GY,beam.len,-Math.PI/2,end,false);
-      cx.setLineDash([5,7]);cx.lineDashOffset=-bob*18;
-      cx.lineWidth=6;cx.strokeStyle=rgba(C_AMB,.07);cx.stroke(path);
-      cx.lineWidth=2.6;cx.strokeStyle=rgba(C_AMB,.2);cx.stroke(path);
-      cx.lineWidth=1.3;cx.strokeStyle=rgba(C_AMB,.9);cx.stroke(path);
-      cx.setLineDash([]);cx.lineDashOffset=0;
     }
     function drawChevrons(x,y){
       for(let i=0;i<3;i++){
@@ -339,7 +300,7 @@
       cx.fillStyle=bgGrad;cx.fillRect(0,0,W,H);
       drawGrid();drawStars();
       cx.save();cx.translate(-cam+sx,sy);
-      drawVoidWave();drawPlatforms();drawBeams();drawReachArc();drawTarget();drawActiveBeam();drawPops();drawTexts();drawRunner();
+      drawPlatforms();drawBeams();drawTarget();drawActiveBeam();drawPops();drawTexts();drawRunner();
       cx.restore();
       cx.globalAlpha=1;cx.fillStyle=vigGrad;cx.fillRect(0,0,W,H);
     }
