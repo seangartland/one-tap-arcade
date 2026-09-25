@@ -13,19 +13,19 @@ body{position:fixed;inset:0;background:#03050c!important}
 canvas{position:fixed;inset:0;display:block;touch-action:none}
 #safe{position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top);pointer-events:none}
 main.game{background:#03050c!important;min-height:0}main.game::before{display:none}
-#c{z-index:1;touch-action:none}.hud{z-index:3;justify-content:center}.hud .score{opacity:0}.hint{z-index:3;color:#9be9ff}.overlay{z-index:10}.overlay .card{background:radial-gradient(ellipse at 50% 40%,rgba(3,5,12,.45),rgba(3,5,12,.94));border-color:rgba(1,205,250,.4)}.overlay .mark{color:#01cdfa}.overlay h1{letter-spacing:.16em;text-shadow:0 0 18px rgba(1,205,250,.9),0 0 60px rgba(255,43,214,.25);animation:fl 5s infinite}.overlay .result-label{color:#ff7ae6}.overlay .instruction{color:#9be9ff}.overlay .primary{color:#03101a;background:#9be9ff}.home{z-index:6}.sound{z-index:6}
+#canvas{z-index:1;touch-action:none}.hud{z-index:3;justify-content:center}.hud .score{opacity:0}.hint{z-index:3;color:#9be9ff}.overlay .card{background:radial-gradient(ellipse at 50% 40%,rgba(3,5,12,.45),rgba(3,5,12,.94));border-color:rgba(1,205,250,.4)}.overlay h1{letter-spacing:.16em;text-shadow:0 0 18px rgba(1,205,250,.9),0 0 60px rgba(255,43,214,.25);animation:fl 5s infinite}.overlay .result-label{color:#ff7ae6}.overlay .instruction{color:#9be9ff}.overlay .primary{color:#03101a;background:#9be9ff}.home{z-index:6}.sound{z-index:6}
 @keyframes fl{0%,100%{opacity:1}92%{opacity:1}93%{opacity:.55}94%{opacity:1}96%{opacity:.8}97%{opacity:1}}
 </style>
 </head>
 <body class="game">
 <main class="game" id="game">
-<canvas id="c" tabindex="0" aria-label="Racing game. Hold to throttle and release to brake before each apex."></canvas>
+<canvas id="canvas" tabindex="0" aria-label="Racing game. Hold to throttle and release to brake before each apex."></canvas>
 <div id="safe"></div>
 <div class="hud hud-center" aria-live="polite"><span class="score" id="score">0</span></div>
 <div class="toast" id="toast" aria-live="polite"></div>
 <div class="hint">Hold to throttle · Release to brake</div>
 <section class="overlay" id="overlay" aria-modal="true" role="dialog" aria-labelledby="title"><div class="card">
-  <div class="mark" aria-hidden="true">◇</div><div class="result-label">Run complete</div><h1 id="title">APEX</h1>
+  <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M18 58 C30 45 24 22 48 14 S84 19 104 7" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".65"/><path d="M19 58 L31 43" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="31" cy="43" r="4" fill="currentColor"/></svg></div><div class="result-label">Run complete</div><h1 id="title">APEX</h1>
   <p class="instruction" id="instruction">Hold to throttle, release to brake. Hit every apex at the limit.</p>
   <p class="session-best" id="sessionBest">Best · 0</p><p class="run-pct" id="runPct" hidden></p>
   <div id="entry"><div id="claimWrap"><label for="username">Claim your username</label><div class="entry-row"><input id="username" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Your username"><button id="claimBtn" class="claim" type="button">Claim</button></div></div><button class="linklike" id="skipSave" type="button">Skip</button></div>
@@ -38,7 +38,7 @@ main.game{background:#03050c!important;min-height:0}main.game::before{display:no
 <script src="/shared/arcade.js"></script>
 <script>
 'use strict';
-const cv=document.getElementById('c'),cx=cv.getContext('2d');
+const cv=document.getElementById('canvas'),cx=cv.getContext('2d');
 const scoreEl=document.getElementById('score'),safeEl=document.getElementById('safe');
 const TWO=Math.PI*2,STEP=8,HW=26,G=2300,VMIN=150,VMIN2=VMIN*VMIN,ACC=420,BRK=620,GAPMAX=600,TRAIL_T=.42;
 const C_CYAN=[1,205,250],C_ICE=[170,245,255],C_AMB=[255,179,0],C_WHT=[255,255,255],C_MAG=[255,43,214],C_PINK=[255,140,235];
@@ -563,7 +563,7 @@ addEventListener('pointerdown',e=>{down.add(e.pointerId);press();});
 addEventListener('pointerup',e=>down.delete(e.pointerId));
 addEventListener('pointercancel',e=>down.delete(e.pointerId));
 addEventListener('blur',()=>{down.clear();keyDown=false;});
-document.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
+cv.addEventListener('touchstart',e=>{e.preventDefault();},{passive:false});
 document.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'||e.code==='Enter'){e.preventDefault();if(!e.repeat){keyDown=true;press();}}});
 addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'||e.code==='Enter')keyDown=false;});
