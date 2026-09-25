@@ -435,19 +435,6 @@
         wash.addColorStop(1, rgba(C_AMB, 0));
         ctx.fillStyle = wash;
         ctx.fillRect(l0, py - laneW * .7, laneW, H - (py - laneW * .7));
-        // amber chevrons on the open lane edges
-        for (var e = 0; e < 2; e++) {
-          var ex = e === 0 ? l0 : l1;
-          for (var i = 0; i < 5; i++) {
-            var cy = py + 16 - i * 18;
-            var P = new Path2D();
-            P.moveTo(ex - 6, cy + 5); P.lineTo(ex, cy); P.lineTo(ex + 6, cy + 5);
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = rgba(C_AMB, .1); ctx.lineWidth = 3.4; ctx.stroke(P);
-            ctx.strokeStyle = rgba(C_AMB, .85); ctx.lineWidth = 1.4; ctx.stroke(P);
-          }
-        }
-        ctx.lineCap = 'butt';
       }
 
       function drawShip(t) {

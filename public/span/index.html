@@ -232,13 +232,6 @@
       stackPath(dot,C_AMB,1.4,mixc(C_AMB,C_WHT,.35));
       cx.fillStyle=rgba(C_WHT,1);cx.beginPath();cx.arc(x,GY,1.5,0,TWO);cx.fill();
     }
-    function drawChevrons(x,y){
-      for(let i=0;i<3;i++){
-        const cy=y-9-i*5,path=new Path2D();
-        path.moveTo(x-6,cy+3);path.lineTo(x,cy-3);path.lineTo(x+6,cy+3);
-        stackPath(path,C_AMB,1.4,C_AMB,.9-i*.12);
-      }
-    }
     function drawHotPoint(x,y,col,scale){
       const r=3*scale;
       cx.fillStyle=rgba(col,.07);cx.beginPath();cx.arc(x,y,r*2.8,0,TWO);cx.fill();
@@ -258,7 +251,6 @@
       const threat=st==='drop',ex=beam.x+Math.cos(beam.ang)*beam.len,ey=GY+Math.sin(beam.ang)*beam.len,col=threat?C_MAG:C_CYAN;
       glowLine(beam.x,GY,ex,ey,col,1.6,threat?mixc(C_MAG,C_WHT,.35):C_WHT);
       drawHotPoint(ex,ey,col,1.1);
-      if(!threat)drawChevrons(ex,ey);
     }
     function drawPops(){
       for(const p of pops){
