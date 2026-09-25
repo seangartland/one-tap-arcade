@@ -103,7 +103,7 @@
       function fallSpeed() {
         return Math.min(3.5, 2.6 + score / 300) * Math.min(2.5, 1 + elapsed / 40);
       }
-      function spawnInterval() { return Math.max(.3, .8 - elapsed * .008 - score * .0015); }
+      function spawnInterval() { return Math.max(.22, .8 - elapsed * .014 - score * .0015); }
       function spawn() {
         var r = 11 + Math.random() * 12;
         meteors.push({
@@ -285,8 +285,7 @@
         if (state === 'playing') {
           spawnT -= dt;
           if (spawnT <= 0) {
-            var burst = Math.min(3, 1 + Math.floor(elapsed / 15));
-            for (var i = 0; i < burst && meteors.length < 14; i++) spawn();
+            if (meteors.length < 14) spawn();
             spawnT = spawnInterval() * rand(.85, 1.15);
           }
           var f = fallSpeed();
