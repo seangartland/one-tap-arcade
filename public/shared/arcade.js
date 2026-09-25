@@ -189,6 +189,87 @@
   if (instructionEl && cfg.tagline) instructionEl.textContent = cfg.tagline;
   if (startBtn && cfg.startLabel) startBtn.textContent = cfg.startLabel;
 
+  function gameDisplayName() {
+    var heading = cfg.boardHeading || '';
+    var lead = String(heading).split('\u00b7')[0].trim();
+    if (lead) return lead;
+    var key = String(cfg.game || '');
+    return key ? key.charAt(0).toUpperCase() + key.slice(1) : '';
+  }
+  var displayName = gameDisplayName();
+  var cardEl = document.querySelector('.overlay .card');
+  var cardFootEl = document.querySelector('.overlay .card-foot');
+  var shareBtn = null;
+  var challengeEl = null;
+  if (cardFootEl) {
+    shareBtn = document.createElement('button');
+    shareBtn.type = 'button';
+    shareBtn.id = 'shareScore';
+    shareBtn.className = 'linklike';
+    shareBtn.textContent = 'Share score';
+    shareBtn.hidden = true;
+    shareBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var u = getUser();
+      var shareName = (u && u.username) ? u.username : 'A rival';
+      var url = location.origin + location.pathname +
+        '?c=' + encodeURIComponent(shareName) + '&s=' + pendingScore;
+      var shareText = 'Can you beat my ' + pendingScore + ' on ' + displayName + '?';
+      if (navigator.share) {
+        navigator.share({ title: shareText, text: shareText, url: url }).catch(function () {});
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () {
+          showToast('Link copied', colors.cyan);
+        }, function () {
+          showToast("Couldn't copy link");
+        });
+      } else {
+        showToast("Couldn't copy link");
+      }
+    });
+    cardFootEl.appendChild(shareBtn);
+  }
+  (function initChallengeBanner() {
+    var sp = new URLSearchParams(location.search);
+    var c = sp.get('c');
+    var s = sp.get('s');
+    if (!c || !s) return;
+    if (!/^[A-Z0-9_]{1,12}$/i.test(c)) return;
+    if (!/^\d{1,5}$/.test(s)) return;
+    var score = Number(s);
+    if (!isFinite(score) || score < 0 || score > 99999) return;
+    if (!cardEl) return;
+    challengeEl = document.createElement('div');
+    challengeEl.id = 'challengeBanner';
+    challengeEl.className = 'challenge';
+    var text = document.createElement('p');
+    text.className = 'challenge-text';
+    var nameEl = document.createElement('b');
+    nameEl.className = 'challenge-name';
+    nameEl.textContent = c;
+    var scoreEl = document.createElement('b');
+    scoreEl.className = 'challenge-score';
+    scoreEl.textContent = String(score);
+    text.appendChild(nameEl);
+    text.appendChild(document.createTextNode(' scored '));
+    text.appendChild(scoreEl);
+    text.appendChild(document.createTextNode('. Can you beat it?'));
+    challengeEl.appendChild(text);
+    var dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.className = 'challenge-dismiss';
+    dismiss.setAttribute('aria-label', 'Dismiss challenge');
+    dismiss.textContent = '\u00d7';
+    dismiss.addEventListener('click', function () {
+      if (challengeEl && challengeEl.parentNode) {
+        challengeEl.parentNode.removeChild(challengeEl);
+        challengeEl = null;
+      }
+    });
+    challengeEl.appendChild(dismiss);
+    cardEl.insertBefore(challengeEl, cardEl.firstChild);
+  })();
+
   /* ---------- theme colors ---------- */
   var colors = {};
   function cssVar(name) {
@@ -442,6 +523,8 @@
   function startFlow() {
     statSent = false;
     initAudio();
+    if (shareBtn) shareBtn.hidden = true;
+    if (challengeEl) challengeEl.hidden = true;
     if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('over'); }
     /* Count the run: fire-and-forget, never blocks game start. */
     postApi({ game: game, play: true }).catch(function () {});
@@ -451,6 +534,7 @@
     runToken++;
     o = o || {};
     pendingScore = o.score || 0;
+    if (shareBtn) shareBtn.hidden = !(pendingScore > 0);
     /* Report the final score for distribution stats (includes 0s): fire-and-forget, once per run. */
     if (!statSent) {
       statSent = true;
