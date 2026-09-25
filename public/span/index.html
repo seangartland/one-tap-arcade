@@ -164,9 +164,9 @@
         beam.av+=24*dt;beam.ang+=beam.av*dt;
         if(beam.ang>=0){
           beam.ang=0;shake=5;tone(90,.16,'sine',.09,0);
-          const n=pillars[cur+1],tip=beam.x+beam.len,tol=12,mid=n.x+n.w/2,off=Math.abs(tip-mid);
+          const n=pillars[cur+1],tip=beam.x+beam.len,tol=12,edgeOff=Math.abs(tip-n.x);
           fail=!(tip>=n.x-tol&&tip<=n.x+n.w+tol);
-          bonus=fail?0:(off<=n.w*.04?3:off<=n.w*.10?2:0);
+          bonus=fail?0:(edgeOff<=6?3:edgeOff<=14?2:0);
           target=fail?tip:n.x+n.w-12;
           st='walk';
         }
@@ -177,7 +177,7 @@
           else{
             const n=pillars[cur+1];
             score+=1+bonus;
-            if(bonus){pops.push({x:n.x+n.w/2,r:4,a:1});texts.push({x:n.x+n.w/2,y:GY,t:0,g:bonus});tone(1320,.16,'triangle',.05,.06);}
+            if(bonus){pops.push({x:n.x,r:4,a:1});texts.push({x:n.x,y:GY,t:0,g:bonus});tone(1320,.16,'triangle',.05,.06);}
             bonus=0;
             cur++;beams.push(beam);beam=null;
             const m=pillars[cur];
