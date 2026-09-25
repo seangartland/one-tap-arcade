@@ -673,7 +673,7 @@
 
   /* ---------- hub mode ---------- */
   function initHub() {
-    var games = ['pulse', 'tower', 'lander', 'dodge', 'lanes', 'meteor', 'pin', 'span'];
+    var games = ['pulse', 'apex', 'tower', 'lander', 'dodge', 'lanes', 'meteor', 'pin', 'span'];
     var toastEl = document.getElementById('toast');
     function hubToast(text, color) {
       if (!toastEl) return;
@@ -826,6 +826,7 @@
         return (plays[b.getAttribute('data-game')] || 0) - (plays[a.getAttribute('data-game')] || 0);
       });
       for (var i = 0; i < cards.length; i++) wrap.appendChild(cards[i]);
+      wrap.classList.remove('cards-pending');
     }
     function finishOne() {
       done++;
@@ -858,5 +859,10 @@
         .then(function () { finishOne(); });
     }
     for (var i = 0; i < games.length; i++) loadGame(games[i]);
+    /* Backstop: never leave the hub blank if a stat fetch hangs. */
+    setTimeout(function () {
+      var wrap = document.querySelector('.cards');
+      if (wrap) wrap.classList.remove('cards-pending');
+    }, 4000);
   }
 })();

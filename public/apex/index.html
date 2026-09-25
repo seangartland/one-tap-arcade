@@ -4,41 +4,43 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#03050c">
-<title>APEX</title>
+<meta name="color-scheme" content="dark">
+<title>APEX - a one-tap racing game</title>
+<link rel="stylesheet" href="/shared/arcade.css">
 <style>
 html,body{margin:0;height:100%;background:#03050c;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
-body{position:fixed;inset:0}
+body{position:fixed;inset:0;background:#03050c!important}
 canvas{position:fixed;inset:0;display:block;touch-action:none}
 #safe{position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top);pointer-events:none}
-#best{position:fixed;top:max(16px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));font-family:"DM Mono",ui-monospace,Menlo,Consolas,monospace;font-size:11px;letter-spacing:2px;color:#ffcf66;text-shadow:0 0 10px rgba(255,179,0,.5);z-index:5;pointer-events:none}
-#ov{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:"DM Mono",ui-monospace,Menlo,Consolas,monospace;background:radial-gradient(ellipse at 50% 45%,rgba(3,5,12,.15) 0%,rgba(3,5,12,.55) 55%,rgba(3,5,12,.9) 100%);transition:opacity .35s}
-#ov.hide{opacity:0;pointer-events:none}
-#ov h1{font-size:min(84px,19vw);margin:0;letter-spacing:.22em;padding-left:.22em;font-weight:700;color:#e8fdff;text-shadow:0 0 18px rgba(1,205,250,.9),0 0 60px rgba(1,205,250,.5),0 0 120px rgba(255,43,214,.25);animation:fl 5s infinite}
-#ov .sub{margin-top:10px;font-size:12px;letter-spacing:6px;padding-left:6px;min-height:16px;color:#ff7ae6;text-shadow:0 0 12px rgba(255,43,214,.8)}
-#ov .bar{width:120px;height:2px;margin:18px auto 0;background:linear-gradient(90deg,transparent,#01cdfa 30%,#fff 50%,#ffb300 70%,transparent);box-shadow:0 0 12px rgba(1,205,250,.8)}
-#ov .how{margin:18px 30px 0;font-size:13px;line-height:1.7;color:#9be9ff;text-shadow:0 0 8px rgba(1,205,250,.35);min-height:22px}
-#ov .go{margin-top:38px;font-size:11px;letter-spacing:5px;padding-left:5px;color:#ffe0a0;text-shadow:0 0 12px rgba(255,179,0,.9);animation:pu 1.5s infinite}
-@keyframes pu{0%,100%{opacity:.3}55%{opacity:1}}
+main.game{background:#03050c!important;min-height:0}main.game::before{display:none}
+#c{z-index:1;touch-action:none}.hud{z-index:3;justify-content:center}.hud .score{opacity:0}.hint{z-index:3;color:#9be9ff}.overlay{z-index:10}.overlay .card{background:radial-gradient(ellipse at 50% 40%,rgba(3,5,12,.45),rgba(3,5,12,.94));border-color:rgba(1,205,250,.4)}.overlay .mark{color:#01cdfa}.overlay h1{letter-spacing:.16em;text-shadow:0 0 18px rgba(1,205,250,.9),0 0 60px rgba(255,43,214,.25);animation:fl 5s infinite}.overlay .result-label{color:#ff7ae6}.overlay .instruction{color:#9be9ff}.overlay .primary{color:#03101a;background:#9be9ff}.home{z-index:6}.sound{z-index:6}
 @keyframes fl{0%,100%{opacity:1}92%{opacity:1}93%{opacity:.55}94%{opacity:1}96%{opacity:.8}97%{opacity:1}}
 </style>
 </head>
-<body>
-<canvas id="c"></canvas>
+<body class="game">
+<main class="game" id="game">
+<canvas id="c" tabindex="0" aria-label="Racing game. Hold to throttle and release to brake before each apex."></canvas>
 <div id="safe"></div>
-<div id="best"></div>
-<div id="ov">
-<h1 id="ovTitle">APEX</h1>
-<div class="sub" id="ovSub"></div>
-<div class="bar"></div>
-<div class="how" id="ovHow">Hold to throttle, release to brake. Hit every apex right at the limit.</div>
-<div class="go" id="ovGo">TAP TO START</div>
-</div>
+<div class="hud hud-center" aria-live="polite"><span class="score" id="score">0</span></div>
+<div class="toast" id="toast" aria-live="polite"></div>
+<div class="hint">Hold to throttle · Release to brake</div>
+<section class="overlay" id="overlay" aria-modal="true" role="dialog" aria-labelledby="title"><div class="card">
+  <div class="mark" aria-hidden="true">◇</div><div class="result-label">Run complete</div><h1 id="title">APEX</h1>
+  <p class="instruction" id="instruction">Hold to throttle, release to brake. Hit every apex at the limit.</p>
+  <p class="session-best" id="sessionBest">Best · 0</p><p class="run-pct" id="runPct" hidden></p>
+  <div id="entry"><div id="claimWrap"><label for="username">Claim your username</label><div class="entry-row"><input id="username" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Your username"><button id="claimBtn" class="claim" type="button">Claim</button></div></div><button class="linklike" id="skipSave" type="button">Skip</button></div>
+  <div id="board" aria-live="polite"><h2>APEX · Global leaders</h2><ol id="boardList"></ol><button class="linklike" id="boardBack" type="button">Back</button></div>
+  <button class="primary" id="start" type="button">Start race</button><div class="card-foot"><button class="linklike" id="viewLeaders" type="button">Leaderboard</button></div>
+</div></section>
+<button class="sound" id="sound" type="button" aria-label="Mute sound" aria-pressed="true">Sound</button><a class="home" href="../">Arcade</a><div class="grain" aria-hidden="true"></div>
+</main>
+<script>window.ARCADE={game:'apex',tagline:'Hold fast. Brake late.',startLabel:'Start race',restartLabel:'Run it back',resultLabel:'Run complete',boardHeading:'APEX · Global leaders'};</script>
+<script src="/shared/arcade.js"></script>
 <script>
 'use strict';
 const cv=document.getElementById('c'),cx=cv.getContext('2d');
-const ov=document.getElementById('ov'),ovTitle=document.getElementById('ovTitle'),ovSub=document.getElementById('ovSub'),ovHow=document.getElementById('ovHow'),ovGo=document.getElementById('ovGo');
-const bestEl=document.getElementById('best'),safeEl=document.getElementById('safe');
-const TWO=Math.PI*2,STEP=8,HW=26,G=2300,VMIN=150,VMIN2=VMIN*VMIN,ACC=400,BRK=560,GAPMAX=560,TRAIL_T=.42;
+const scoreEl=document.getElementById('score'),safeEl=document.getElementById('safe');
+const TWO=Math.PI*2,STEP=8,HW=26,G=2300,VMIN=150,VMIN2=VMIN*VMIN,ACC=420,BRK=620,GAPMAX=600,TRAIL_T=.42;
 const C_CYAN=[1,205,250],C_ICE=[170,245,255],C_AMB=[255,179,0],C_WHT=[255,255,255],C_MAG=[255,43,214],C_PINK=[255,140,235];
 const rand=(a,b)=>a+Math.random()*(b-a),lerp=(a,b,t)=>a+(b-a)*t,clamp=(x,a,b)=>x<a?a:x>b?b:x;
 const rgba=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')';
@@ -58,29 +60,13 @@ function resize(){
 }
 addEventListener('resize',resize);
 
-// ---------- audio
-let ac=null,master=null,eng=null;
-function audio(){
-  if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=.9;master.connect(ac.destination);}catch(e){ac=null;return;}}
-  if(ac.state==='suspended')ac.resume();
-}
-function blip(f,d,type,vol,slide,delay){
-  if(!ac)return;
-  const t=ac.currentTime+(delay||0),o=ac.createOscillator(),g=ac.createGain();
-  o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
-  g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(vol||.05,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+d);
-  o.connect(g);g.connect(master);o.start(t);o.stop(t+d+.03);
-}
-function noise(d,vol,f0,f1,bp){
-  if(!ac)return;
-  const t=ac.currentTime,n=Math.floor(ac.sampleRate*d),b=ac.createBuffer(1,n,ac.sampleRate),ch=b.getChannelData(0);
-  for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*(1-i/n);
-  const s=ac.createBufferSource(),fl=ac.createBiquadFilter(),g=ac.createGain();
-  s.buffer=b;fl.type=bp?'bandpass':'lowpass';fl.Q.value=bp?6:1;fl.frequency.setValueAtTime(f0,t);fl.frequency.exponentialRampToValueAtTime(f1,t+d);
-  g.gain.setValueAtTime(vol,t);s.connect(fl);fl.connect(g);g.connect(master);s.start(t);
-}
+// ---------- shared audio
+let eng=null;
+function blip(f,d,type,vol,slide,delay){Arcade.tone(f,d,type,vol,delay);if(slide)Arcade.tone(slide,d*.55,type,(vol||.05)*.45,(delay||0)+d*.45);}
+function noise(d,vol,f0,f1){Arcade.tone(f0,d,'sawtooth',Math.min(.09,vol*.2));Arcade.tone(f1,d*.7,'triangle',Math.min(.06,vol*.12),d*.12);}
 function engineOn(){
-  if(!ac||eng)return;
+  const nodes=Arcade.audioNodes();if(!nodes||eng)return;
+  const ac=nodes.ctx,master=nodes.out;
   const o1=ac.createOscillator(),o2=ac.createOscillator(),f=ac.createBiquadFilter(),g=ac.createGain(),g2=ac.createGain();
   o1.type='sawtooth';o2.type='square';o1.frequency.value=60;o2.frequency.value=30.4;
   f.type='lowpass';f.frequency.value=300;f.Q.value=5;g.gain.value=0;g2.gain.value=.3;
@@ -89,7 +75,7 @@ function engineOn(){
 }
 function engineSet(sp,on,hold){
   if(!eng)return;
-  const t=ac.currentTime;
+  const t=eng.o1.context.currentTime;
   eng.o1.frequency.setTargetAtTime(36+sp*.12,t,.07);eng.o2.frequency.setTargetAtTime(18.4+sp*.06,t,.07);
   eng.f.frequency.setTargetAtTime(on?(220+sp*(hold?2.2:.9)):100,t,.08);
   eng.g.gain.setTargetAtTime(on?(hold?.045:.028):0,t,on?.08:.3);
@@ -125,7 +111,7 @@ function trackD(n){
   return{rMin:lerp(150,60,t),rMax:lerp(260,135,t),stMin:lerp(800,560,t),stMax:lerp(1150,860,t),chic:n<5?0:lerp(.18,.45,t)};
 }
 // minimum pace keeps climbing past what a clean run can hold, so every run ends
-function paceD(n){return{vmax:lerp(820,960,clamp(n/45,0,1)),pace:Math.min(700,330+6.5*n),gain:Math.min(2.2,1+.02*n)};}
+function paceD(n){return{vmax:lerp(820,960,clamp(n/45,0,1)),pace:Math.min(700,330+5.5*n),gain:Math.min(2.1,1+.015*n)};}
 function pickTurn(a,b){
   const L=1.3,th=genTh;
   let dir=Math.abs(th)>.3?(Math.random()<.85?-Math.sign(th):Math.sign(th)):(Math.random()<.5?1:-1);
@@ -169,7 +155,6 @@ function nextCorner(){for(const c of corners)if(c.sApex>carS)return c;return nul
 
 // ---------- state
 let mode='attract',el=0,carS=0,v=0,waveS=0,gap=GAPMAX,score=0,cleared=0,perfects=0,cur=null;
-let best=+(localStorage.getItem('apex.best')||0);
 let slide=null,deadT=0,overAt=0,showCar=true,doomed=false;
 let carX=0,carY=0,carTh=0,carYaw=0,camX=0,camY=0,camA=0,thSm=0,look=120,zoom=1;
 let shake=0,flash=0,flashC=C_WHT,tScale=1,slowT=0,slowK=1,scorePop=0,tensS=0,tensC=C_AMB,dangerS=0,beatT=0,beatP=0,waveAcc=0;
@@ -205,17 +190,17 @@ function reset(play){
   pose();thSm=carTh;camA=thSm*.3;look=50+v*.26;zoom=zoomFor(v);camUpd(0);initDust();
 }
 function start(){
-  reset(true);ov.classList.add('hide');flash=.45;flashC=C_CYAN;
+  Arcade.startFlow();reset(true);Arcade.resetPhase();scoreEl.textContent='0';flash=.45;flashC=C_CYAN;
   engineOn();blip(330,.25,'sine',.05,990);blip(660,.3,'triangle',.03,1320,.08);
 }
 function apex(c){
   const q=v/c.vlim;
   if(mode==='attract'){
     if(q>1)v=c.vlim*.98;
-    c.grade=q>=.97?3:q>=.92?2:1;c.fl=1;ring(c.grade,.6);cur=nextCorner();return;
+    c.grade=q>=.95?3:q>=.88?2:1;c.fl=1;ring(c.grade,.6);cur=nextCorner();return;
   }
   if(q>1){startSlide(c,q);return;}
-  const g=q>=.97?3:q>=.92?2:1;
+  const g=q>=.95?3:q>=.88?2:1;
   score+=g;cleared++;c.grade=g;c.fl=1;scorePop=1;ring(g,1);
   const sp=w2s(carX,carY);
   pops.push({x:sp[0],y:sp[1]-34,t:0,g});
@@ -223,7 +208,7 @@ function apex(c){
     blip(1320,.25,'triangle',.05);blip(1980,.35,'sine',.035,0,.05);blip(2640,.4,'sine',.02,0,.1);vib(14);}
   else if(g===2){blip(990,.18,'triangle',.045);blip(1480,.2,'sine',.02,0,.04);}
   else blip(620,.12,'triangle',.035);
-  cur=nextCorner();
+  scoreEl.textContent=score;Arcade.setPhase(Math.min(5,1+Math.floor(score/30)));cur=nextCorner();
 }
 function ring(g,s){rings.push({x:carX,y:carY,t:0,g,s});}
 function startSlide(c,q){
@@ -256,11 +241,7 @@ function caught(){
 }
 function gameOver(){
   mode='over';overAt=performance.now();
-  const nb=score>best;best=Math.max(best,score);localStorage.setItem('apex.best',best);
-  ovTitle.textContent=score;
-  ovSub.textContent=slide?'SLID WIDE':'DEREZZED';
-  ovHow.textContent=(nb&&score>0?'new best':'best '+best)+' · '+perfects+' perfect apex'+(perfects===1?'':'es');
-  ovGo.textContent='TAP TO RETRY';ov.classList.remove('hide');
+  Arcade.gameOver({score,title:String(score),instruction:(slide?'Slid wide. ':'Derezzer caught you. ')+perfects+' perfect apex'+(perfects===1?'':'es')+'.',restartLabel:'Run it back'});
 }
 
 function step(dt){
@@ -311,10 +292,10 @@ function w2s(x,y){
 function initDust(){dust=[];for(let i=0;i<70;i++)dust.push({x:camX+rand(-700,700),y:camY+rand(-1000,1000),z:rand(.35,1)});}
 function ratioCol(q){
   if(q>1)return C_MAG;
-  if(q>=.97)return C_WHT;
-  if(q>=.92)return mixc(C_AMB,[255,236,190],clamp((q-.955)/.015,0,1));
-  if(q<=.86)return C_CYAN;
-  return mixc(C_CYAN,C_ICE,(q-.86)/.06);
+  if(q>=.95)return C_WHT;
+  if(q>=.88)return mixc(C_AMB,[255,236,190],clamp((q-.915)/.035,0,1));
+  if(q<=.82)return C_CYAN;
+  return mixc(C_CYAN,C_ICE,(q-.82)/.06);
 }
 function trailCol(){
   if(mode==='slide')return(el*30|0)%2?C_MAG:C_WHT;
@@ -336,7 +317,7 @@ function fx(dt,rd){
   while(trail.length&&el-trail[0].t>TRAIL_T)trail.shift();
   // tension and wave danger
   let tt=0;
-  if(playing&&cur){const q=v/cur.vlim;if(doomed){tt=1;tensC=C_MAG;}else if(q>=.92&&q<=1&&cur.sApex-carS<320){tt=.55;tensC=q>=.97?C_WHT:C_AMB;}}
+  if(playing&&cur){const q=v/cur.vlim;if(doomed){tt=1;tensC=C_MAG;}else if(q>=.88&&q<=1&&cur.sApex-carS<320){tt=.55;tensC=q>=.95?C_WHT:C_AMB;}}
   tensS+=(tt-tensS)*Math.min(1,rd*10);
   const dg=mode==='attract'?0:mode==='play'||mode==='slide'?clamp(1-gap/GAPMAX,0,1):dangerS*.97;
   dangerS+=(dg-dangerS)*Math.min(1,rd*6);
@@ -513,7 +494,7 @@ function drawHud(){
   // limit meter: needle is speed as a fraction of the next corner's grip limit
   const gw=Math.min(180,W*.46),gx=W/2-gw/2,gy=y+36,q0=.6,q1=1.12,X=q=>gx+(clamp(q,q0,q1)-q0)/(q1-q0)*gw;
   const seg=(a,b,col,al)=>{cx.fillStyle=rgba(col,al);cx.fillRect(X(a),gy-1.5,X(b)-X(a)-1,3);};
-  seg(q0,.86,C_CYAN,.28);seg(.86,.92,C_ICE,.35);seg(.92,.97,C_AMB,.7);seg(.97,1,C_WHT,.9);seg(1,q1,C_MAG,doomed&&(el*20|0)%2?.9:.4);
+  seg(q0,.82,C_CYAN,.28);seg(.82,.88,C_ICE,.35);seg(.88,.95,C_AMB,.7);seg(.95,1,C_WHT,.9);seg(1,q1,C_MAG,doomed&&(el*20|0)%2?.9:.4);
   if(mode==='play'&&cur){
     const q=v/cur.vlim,nx=X(q),col=trailCol();
     cx.globalCompositeOperation='lighter';
@@ -573,12 +554,10 @@ function frame(now){
     fx(dt,rd);
   }
   draw();
-  bestEl.textContent='BEST '+Math.max(best,mode==='play'?score:0);
   requestAnimationFrame(frame);
 }
 function press(){
-  audio();
-  if(mode==='attract'||(mode==='over'&&performance.now()-overAt>700))start();
+  Arcade.initAudio();
 }
 addEventListener('pointerdown',e=>{down.add(e.pointerId);press();});
 addEventListener('pointerup',e=>down.delete(e.pointerId));
@@ -588,6 +567,9 @@ document.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
 document.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'||e.code==='Enter'){e.preventDefault();if(!e.repeat){keyDown=true;press();}}});
 addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'||e.code==='Enter')keyDown=false;});
+ARCADE.onStart=start;
+ARCADE.onMute=muted=>{if(muted&&eng)eng.g.gain.setTargetAtTime(0,eng.o1.context.currentTime,.03);};
+ARCADE.onVisibility=()=>{last=performance.now();down.clear();keyDown=false;};
 resize();reset(false);
 requestAnimationFrame(frame);
 </script>

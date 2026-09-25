@@ -480,6 +480,9 @@ h1 {
   margin-top: 40px;
   text-align: left;
 }
+/* Cards stay hidden until play counts arrive and sortCards() puts them in
+   final order, so the hub never flashes an unsorted layout. */
+.cards-pending { visibility: hidden; }
 .game-card {
   display: block;
   padding: 26px 24px 22px;
