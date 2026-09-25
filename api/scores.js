@@ -15,7 +15,7 @@ const USER_RE = /^[A-Z0-9_]{3,12}$/;
    covers scores (EDGES[i-1], EDGES[i]], with bucket 0 = {0} exactly. */
 const HIST_EDGES = {
   pulse:    [0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, Infinity],
-  apex:     [0, 20, 40, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 170, Infinity],
+  apex:     [0, 2, 5, 8, 12, 16, 20, 26, 34, 44, 56, 70, 88, 110, Infinity],
   tower:    [0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 90, 110, 140, Infinity],
   breakout: [0, 10, 20, 30, 40, 50, 65, 80, 95, 110, 130, 160, 200, 260, Infinity],
   lander:   [0, 10, 20, 30, 40, 50, 65, 80, 100, 120, 150, 180, 230, 300, Infinity],
@@ -23,7 +23,7 @@ const HIST_EDGES = {
   lanes:    [0, 5, 10, 15, 20, 28, 36, 46, 58, 72, 90, 115, 150, 200, Infinity],
   meteor:   [0, 5, 10, 15, 25, 35, 50, 65, 85, 110, 140, 180, 230, 300, Infinity],
   pin:      [0, 5, 10, 15, 20, 30, 40, 48, 56, 64, 72, 80, 90, 100, Infinity],
-  span:     [0, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, Infinity],
+  span:     [0, 2, 4, 6, 8, 10, 13, 16, 20, 25, 32, 40, 50, 62, Infinity],
 };
 function histBin(score, game) {
   const edges = HIST_EDGES[game] || HIST_EDGES.pulse;
