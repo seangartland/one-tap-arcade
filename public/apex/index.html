@@ -13,7 +13,7 @@ body{position:fixed;inset:0;background:#03050c!important}
 canvas{position:fixed;inset:0;display:block;touch-action:none}
 #safe{position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top);pointer-events:none}
 main.game{background:#03050c!important;min-height:0}main.game::before{display:none}
-#canvas{z-index:1;touch-action:none}.hud{z-index:3;justify-content:center}.hud .score{opacity:0}.hint{z-index:3;color:#9be9ff}.overlay .card{background:radial-gradient(ellipse at 50% 40%,rgba(3,5,12,.45),rgba(3,5,12,.94));border-color:rgba(1,205,250,.4)}.overlay h1{letter-spacing:.16em;text-shadow:0 0 18px rgba(1,205,250,.9),0 0 60px rgba(255,43,214,.25);animation:fl 5s infinite}.overlay .result-label{color:#ff7ae6}.overlay .instruction{color:#9be9ff}.overlay .primary{color:#03101a;background:#9be9ff}.home{z-index:6}.sound{z-index:6}
+#canvas{z-index:1;touch-action:none}.hud{z-index:3;justify-content:center}.hud .score{opacity:0}.hint{z-index:3;color:#9be9ff}.overlay .card{background:radial-gradient(ellipse at 50% 40%,rgba(3,5,12,.45),rgba(3,5,12,.94));border-color:rgba(1,205,250,.4)}.overlay h1{letter-spacing:.16em;text-shadow:0 0 18px rgba(1,205,250,.9),0 0 60px rgba(255,43,214,.25);animation:fl 5s infinite}.overlay .result-label{color:#ff7ae6}.overlay .instruction{color:#9be9ff}.home{z-index:6}.sound{z-index:6}
 @keyframes fl{0%,100%{opacity:1}92%{opacity:1}93%{opacity:.55}94%{opacity:1}96%{opacity:.8}97%{opacity:1}}
 </style>
 </head>
@@ -32,7 +32,10 @@ main.game{background:#03050c!important;min-height:0}main.game::before{display:no
   <div id="board" aria-live="polite"><h2>APEX · Global leaders</h2><ol id="boardList"></ol><button class="linklike" id="boardBack" type="button">Back</button></div>
   <button class="primary" id="start" type="button">Start race</button><div class="card-foot"><button class="linklike" id="viewLeaders" type="button">Leaderboard</button></div>
 </div></section>
-<button class="sound" id="sound" type="button" aria-label="Mute sound" aria-pressed="true">Sound</button><a class="home" href="../">Arcade</a><div class="grain" aria-hidden="true"></div>
+<button class="sound" id="sound" type="button" aria-label="Mute sound" aria-pressed="true">
+      <svg class="on" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="M17 9.2c.7.7 1 1.6 1 2.8s-.3 2.1-1 2.8M19.5 6.8c1.4 1.4 2.1 3.1 2.1 5.2s-.7 3.8-2.1 5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <svg class="off" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="m17.5 9 4 4m0-4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button><a class="home" href="../">Arcade</a><div class="grain" aria-hidden="true"></div>
 </main>
 <script>window.ARCADE={game:'apex',tagline:'Hold fast. Brake late.',startLabel:'Start race',restartLabel:'Run it back',resultLabel:'Run complete',boardHeading:'APEX · Global leaders'};</script>
 <script src="/shared/arcade.js"></script>
