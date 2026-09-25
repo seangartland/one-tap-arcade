@@ -181,6 +181,83 @@
     return;
   }
 
+  /* ---------- shared game chrome ---------- */
+  /* Sound toggle, home link, grain layer, and toast are byte-identical on
+     every game page, so this module injects them into body once. Each insert
+     is a no-op when the element is already present, so the hub and any
+     hand-authored pages stay untouched. */
+  function mountGameChrome() {
+    if (!document.body) return;
+    if (!document.getElementById('sound')) {
+      var snd = document.createElement('button');
+      snd.type = 'button';
+      snd.className = 'sound';
+      snd.id = 'sound';
+      snd.setAttribute('aria-label', 'Mute sound');
+      snd.setAttribute('aria-pressed', 'true');
+      snd.innerHTML =
+        '<svg class="on" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="M17 9.2c.7.7 1 1.6 1 2.8s-.3 2.1-1 2.8M19.5 6.8c1.4 1.4 2.1 3.1 2.1 5.2s-.7 3.8-2.1 5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>' +
+        '<svg class="off" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="m17.5 9 4 4m0-4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+      document.body.appendChild(snd);
+    }
+    if (!document.querySelector('a.home')) {
+      var home = document.createElement('a');
+      home.className = 'home';
+      home.href = '../';
+      home.textContent = 'Arcade';
+      document.body.appendChild(home);
+    }
+    if (!document.querySelector('.grain')) {
+      var grain = document.createElement('div');
+      grain.className = 'grain';
+      grain.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(grain);
+    }
+    if (!document.getElementById('toast')) {
+      var toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.id = 'toast';
+      toast.setAttribute('aria-live', 'polite');
+      document.body.appendChild(toast);
+    }
+  }
+  mountGameChrome();
+
+  /* ---------- standard overlay card ---------- */
+  /* The overlay card is identical on every game page apart from the .mark
+     art, which each page owns. Compose the card from the shared template and
+     move each page's .mark into it, so this library owns the structure while
+     the page keeps only its SVG. All visible copy is filled from
+     window.ARCADE below and by startFlow/gameOver/entry/board wiring. */
+  function buildOverlay() {
+    var shell = document.getElementById('overlay');
+    if (!shell || shell.querySelector('.card')) return;
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<div class="result-label"></div>' +
+      '<h1 id="title"></h1>' +
+      '<p class="instruction" id="instruction"></p>' +
+      '<p class="session-best" id="sessionBest"></p>' +
+      '<p class="run-pct" id="runPct" hidden></p>' +
+      '<div id="entry">' +
+      '<div id="claimWrap"><label for="username">Claim your username</label>' +
+      '<div class="entry-row">' +
+      '<input id="username" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Your username" />' +
+      '<button id="claimBtn" class="claim" type="button">Claim</button>' +
+      '</div></div>' +
+      '<button class="linklike" id="skipSave" type="button">Skip</button>' +
+      '</div>' +
+      '<div id="board" aria-live="polite"><h2></h2><ol id="boardList"></ol>' +
+      '<button class="linklike" id="boardBack" type="button">Back</button></div>' +
+      '<button class="primary" id="start"></button>' +
+      '<div class="card-foot"><button class="linklike" id="viewLeaders" type="button">Leaderboard</button></div>';
+    var mark = shell.querySelector('.mark');
+    if (mark) card.insertBefore(mark, card.firstChild);
+    shell.appendChild(card);
+  }
+  buildOverlay();
+
   var cfg = window.ARCADE || {};
   var game = cfg.game || '';
 
@@ -206,6 +283,7 @@
   var skipBtn = document.getElementById('skipSave');
 
   /* Static copy driven by the page config. */
+  if (titleEl && cfg.title) titleEl.textContent = cfg.title;
   if (boardTitleEl && cfg.boardHeading) boardTitleEl.textContent = cfg.boardHeading;
   if (resultLabelEl && cfg.resultLabel) resultLabelEl.textContent = cfg.resultLabel;
   if (instructionEl && cfg.tagline) instructionEl.textContent = cfg.tagline;

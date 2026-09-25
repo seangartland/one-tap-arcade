@@ -30,48 +30,17 @@
     <div class="pips" id="pips" aria-label="3 lives remaining">
       <span class="pip on"></span><span class="pip on"></span><span class="pip on"></span>
     </div>
-    <div class="toast" id="toast" aria-live="polite"></div>
     <div class="hint">Tap the falling rocks · Don't let them land</div>
 
     <section class="overlay" id="overlay" aria-modal="true" role="dialog" aria-labelledby="title">
-      <div class="card">
-        <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M12 42 L58 36" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".5"/><path d="M6 50 L44 46" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".3"/><path d="M18 34 L40 32" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".3"/><circle cx="68" cy="36" r="13" fill="currentColor"/></svg></div>
-        <div class="result-label">Run complete</div>
-        <h1 id="title">Meteor.</h1>
-        <p class="instruction" id="instruction">Tap the falling rocks.</p>
-        <p class="session-best" id="sessionBest">Session best · 0</p>
-        <p class="run-pct" id="runPct" hidden></p>
-        <div id="entry">
-          <div id="claimWrap">
-            <label for="username">Claim your username</label>
-            <div class="entry-row">
-              <input id="username" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Your username" />
-              <button id="claimBtn" class="claim" type="button">Claim</button>
-            </div>
-          </div>
-          <button class="linklike" id="skipSave" type="button">Skip</button>
-        </div>
-        <div id="board" aria-live="polite">
-          <h2>Meteor · Global leaders</h2>
-          <ol id="boardList"></ol>
-          <button class="linklike" id="boardBack" type="button">Back</button>
-        </div>
-        <button class="primary" id="start">Start blasting</button>
-        <div class="card-foot"><button class="linklike" id="viewLeaders" type="button">Leaderboard</button></div>
-      </div>
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 120 68" aria-hidden="true"><path d="M12 42 L58 36" stroke="currentColor" stroke-width="4" stroke-linecap="round" opacity=".5"/><path d="M6 50 L44 46" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".3"/><path d="M18 34 L40 32" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".3"/><circle cx="68" cy="36" r="13" fill="currentColor"/></svg></div>
     </section>
-
-    <button class="sound" id="sound" type="button" aria-label="Mute sound" aria-pressed="true">
-      <svg class="on" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="M17 9.2c.7.7 1 1.6 1 2.8s-.3 2.1-1 2.8M19.5 6.8c1.4 1.4 2.1 3.1 2.1 5.2s-.7 3.8-2.1 5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      <svg class="off" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z" fill="currentColor"/><path d="m17.5 9 4 4m0-4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-    </button>
-    <a class="home" href="../">Arcade</a>
-    <div class="grain" aria-hidden="true"></div>
   </main>
 
   <script>
     window.ARCADE = {
       game: 'meteor',
+      title: 'Meteor.',
       tagline: 'Tap the falling rocks.',
       startLabel: 'Start blasting',
       restartLabel: 'Run it back',
@@ -223,7 +192,7 @@
         meteors = []; particles = []; rings = [];
         flash = 0; shake = 0; spawnT = 0.6;
         spawn(); spawn();
-        applyPhase(1, true);
+        Arcade.setPhase(1, true);
         syncHud();
         gameEl.classList.add('playing');
         tone(440, .09, 'sine', .07, 0);
