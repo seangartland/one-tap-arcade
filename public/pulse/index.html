@@ -262,9 +262,15 @@
         }
         ctx.globalAlpha = 1;
 
-        // amber target arc: stacked glow, apex dot
+        // amber target: solid wash filling the track wall to wall, bright center line, apex dot
         var t0 = target - targetWidth / 2 - .055, t1 = target + targetWidth / 2 + .055;
-        glowArc(ctx, cx, cy, radius, t0, t1, C_AMBER, 26, 15, 6);
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius + 13, t0, t1);
+        ctx.arc(cx, cy, radius - 13, t1, t0, true);
+        ctx.closePath();
+        ctx.globalAlpha = .4; ctx.fillStyle = C_AMBER; ctx.fill();
+        ctx.globalAlpha = 1;
+        strokeArc(ctx, cx, cy, radius, t0, t1, 5, C_AMBER, 1);
         var ax = cx + Math.cos(target) * radius, ay = cy + Math.sin(target) * radius;
         ctx.globalAlpha = .15; ctx.fillStyle = C_AMBER;
         ctx.beginPath(); ctx.arc(ax, ay, 8, 0, Math.PI * 2); ctx.fill();
