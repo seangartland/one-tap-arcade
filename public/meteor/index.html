@@ -89,7 +89,7 @@
       var shake = 0;
       var spawnT = 0;
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      var PHASE_SECS = [25, 55, 90, 130]; // seconds survived where phases 2..5 begin
+      var PHASE_SECS = [15, 35, 60, 90]; // seconds where phases 2..5 begin // seconds survived where phases 2..5 begin
       function checkPhase() {
         if (Arcade.setPhase(Arcade.phaseAt(elapsed, PHASE_SECS))) {
           tone(520, .12, 'sine', .06, 0);

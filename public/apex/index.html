@@ -99,7 +99,7 @@ function trackD(n){
   return{rMin:lerp(150,60,t),rMax:lerp(260,135,t),stMin:lerp(800,560,t),stMax:lerp(1150,860,t),chic:n<5?0:lerp(.18,.45,t)};
 }
 // minimum pace keeps climbing past what a clean run can hold, so every run ends
-const PHASE_DIST=[14000,32000,55000,80000]; /* distance traveled where phases 2..5 begin */
+const PHASE_DIST=[5000,14000,26000,42000]; /* distance traveled where phases 2..5 begin */
 function paceD(n){return{vmax:lerp(820,960,clamp(n/45,0,1)),pace:Math.min(700,330+5.5*n),gain:Math.min(2.1,1+.015*n)};}
 function pickTurn(a,b){
   const L=1.3,th=genTh;

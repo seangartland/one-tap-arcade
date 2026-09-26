@@ -93,7 +93,7 @@
         return Math.abs(x - pad.x) <= pad.w / 2 - 6 ? padTopY() : terrainY;
       }
 
-      var PHASE_PADS = [2, 5, 9, 14]; // pads landed where phases 2..5 begin
+      var PHASE_PADS = [1, 3, 6, 10]; // pads landed where phases 2..5 begin // pads landed where phases 2..5 begin
       function checkPhase() {
         return Arcade.setPhase(Arcade.phaseAt(round - 1, PHASE_PADS), true);
       }

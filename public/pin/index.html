@@ -80,7 +80,7 @@
     function speed(){return Math.min(1.25+el*.028,4.2)*(.86+.14*Math.sin(el*.9));}
     function thr(){return 2*Math.asin(Math.min(1,(HR+1.5)/(R+L)));}
     function angDiff(a,b){let d=((a-b)%TWO+TWO)%TWO;return d>Math.PI?TWO-d:d;}
-    const PHASE_SECS=[25,55,90,130]; // seconds survived where phases 2..5 begin
+    const PHASE_SECS=[15,35,60,90]; // seconds survived where phases 2..5 begin
     function checkPhase(){
       Arcade.setPhase(Arcade.phaseAt(el,PHASE_SECS));
     }

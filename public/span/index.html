@@ -100,7 +100,7 @@
       px=pillars[0].x+pillars[0].w-12;py=0;pvy=0;st='ready';
       if(!stars.length)for(let i=0;i<60;i++)stars.push({x:rand(0,1),y:rand(0,1),s:rand(.5,1.6),d:rand(.1,.4)});
     }
-    const PHASE_CROSSINGS=[8,18,30,45]; // crossings where phases 2..5 begin
+    const PHASE_CROSSINGS=[5,12,22,35]; // crossings where phases 2..5 begin
     function checkPhase(){
       Arcade.setPhase(Arcade.phaseAt(cur,PHASE_CROSSINGS));
     }

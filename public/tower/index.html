@@ -76,7 +76,7 @@
       function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
       function mixc(a, b, t) { return [a[0] + (b[0] - a[0]) * t | 0, a[1] + (b[1] - a[1]) * t | 0, a[2] + (b[2] - a[2]) * t | 0]; }
 
-      var PHASE_BLOCKS = [18, 40, 65, 95]; // blocks stacked where phases 2..5 begin
+      var PHASE_BLOCKS = [10, 25, 45, 70]; // blocks where phases 2..5 begin // blocks stacked where phases 2..5 begin
       function checkPhase() {
         Arcade.setPhase(Arcade.phaseAt(stack.length - 1, PHASE_BLOCKS));
       }
