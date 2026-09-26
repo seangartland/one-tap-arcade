@@ -13,8 +13,7 @@ body{position:fixed;inset:0;background:#03050c!important}
 canvas{position:fixed;inset:0;display:block;touch-action:none}
 #safe{position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top);pointer-events:none}
 main.game{background:#03050c!important;min-height:0}main.game::before{display:none}
-#canvas{z-index:1;touch-action:none}.hud{z-index:3;justify-content:center}.hud .score{opacity:0}.hint{z-index:3;color:#9be9ff}.overlay .card{background:radial-gradient(ellipse at 50% 40%,rgba(3,5,12,.45),rgba(3,5,12,.94));border-color:rgba(1,205,250,.4)}.overlay h1{letter-spacing:.16em;text-shadow:0 0 18px rgba(1,205,250,.9),0 0 60px rgba(255,43,214,.25);animation:fl 5s infinite}.overlay .result-label{color:#ff7ae6}.overlay .instruction{color:#9be9ff}.home{z-index:6}.sound{z-index:6}
-@keyframes fl{0%,100%{opacity:1}92%{opacity:1}93%{opacity:.55}94%{opacity:1}96%{opacity:.8}97%{opacity:1}}
+#canvas{z-index:1;touch-action:none}.hud{z-index:3;justify-content:center}.hud .score{opacity:0}.hint{z-index:3;color:#9be9ff}.home{z-index:6}.sound{z-index:6}
 </style>
 </head>
 <body class="game">
@@ -148,7 +147,7 @@ function nextCorner(){for(const c of corners)if(c.sApex>carS)return c;return nul
 let mode='attract',el=0,carS=0,v=0,waveS=0,gap=GAPMAX,score=0,cleared=0,perfects=0,cur=null;
 let slide=null,deadT=0,overAt=0,showCar=true,doomed=false;
 let carX=0,carY=0,carTh=0,carYaw=0,camX=0,camY=0,camA=0,thSm=0,look=120,zoom=1;
-let shake=0,flash=0,flashC=C_WHT,tScale=1,slowT=0,slowK=1,scorePop=0,tensS=0,tensC=C_AMB,dangerS=0,beatT=0,beatP=0,waveAcc=0;
+let shake=0,flash=0,flashC=C_WHT,tScale=1,slowT=0,slowK=1,boostT=0,scorePop=0,tensS=0,tensC=C_AMB,dangerS=0,beatT=0,beatP=0,waveAcc=0;
 let trail=[],parts=[],rings=[],pops=[],dust=[];
 const _a={},_b={},_c={},_w={};
 
@@ -176,7 +175,7 @@ function isHeld(){return down.size>0||keyDown;}
 
 function reset(play){
   mode=play?'play':'attract';trackReset();while(genS<3200)genUnit();
-  carS=160;v=play?430:520;gap=GAPMAX;waveS=carS-gap;score=0;cleared=0;perfects=0;cur=nextCorner();
+  carS=160;v=play?430:520;gap=GAPMAX;waveS=carS-gap;score=0;cleared=0;perfects=0;cur=nextCorner();boostT=0;
   slide=null;deadT=0;showCar=true;doomed=false;trail=[];parts=[];rings=[];pops=[];
   pose();thSm=carTh;camA=thSm*.3;look=50+v*.26;zoom=zoomFor(v);camUpd(0);initDust();
 }
@@ -195,7 +194,7 @@ function apex(c){
   score+=g+1;cleared++;c.grade=g;c.fl=1;scorePop=1;ring(g,1);
   const sp=w2s(carX,carY);
   pops.push({x:sp[0],y:sp[1]-34,t:0,g});
-  if(g===3){perfects++;flash=.5;flashC=C_WHT;slowT=.16;slowK=.3;shake=Math.max(shake,3);
+  if(g===3){perfects++;flash=.35;flashC=C_WHT;boostT=.7;v+=90;
     blip(1320,.25,'triangle',.05);blip(1980,.35,'sine',.035,0,.05);blip(2640,.4,'sine',.02,0,.1);vib(14);}
   else if(g===2){blip(990,.18,'triangle',.045);blip(1480,.2,'sine',.02,0,.04);}
   else blip(620,.12,'triangle',.035);
@@ -257,7 +256,7 @@ function step(dt){
     const pd=paceD(mode==='play'?cleared:8),ent=cur&&carS>=cur.sIn&&carS<cur.sApex;
     if(mode==='play'?isHeld():aiHold())v+=ACC*(ent?.6:1)*Math.max(0,1-(v/pd.vmax)**2)*dt;
     else v-=BRK*(ent?.5:1)*dt;
-    v=clamp(v,VMIN,pd.vmax);
+    v=clamp(v,VMIN,pd.vmax*(boostT>0?1.15:1));
     carS+=v*dt;
     if(cur&&carS>=cur.sApex)apex(cur);
     if(mode==='play'){
@@ -556,6 +555,7 @@ function frame(now){
   const rd=Math.min((now-last)/1000,.05);last=now;
   if(!document.hidden){
     if(slowT>0)slowT-=rd;
+    if(boostT>0)boostT-=rd;
     const tg=slowT>0?slowK:1;tScale+=(tg-tScale)*Math.min(1,rd*(tg<tScale?40:7));
     const dt=rd*tScale,n=Math.max(1,Math.ceil(dt*120));
     for(let i=0;i<n;i++)step(dt/n);
