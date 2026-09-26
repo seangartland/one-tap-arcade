@@ -53,7 +53,7 @@
     const C_CYAN=[1,205,254],C_ICE=[170,245,255],C_AMB=[255,209,102],C_MAG=[255,43,214],C_WHT=[255,255,255];
     function rgba(c,a){return 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')';}
     function mixc(a,b,t){return [a[0]+(b[0]-a[0])*t|0,a[1]+(b[1]-a[1])*t|0,a[2]+(b[2]-a[2])*t|0];}
-    let W=0,H=0,CX=0,CY=0,R=50,L=80,HR=7,LY=0,bgGrad=null,vigGrad=null;
+    let W=0,H=0,CX=0,CY=0,R=50,L=80,HR=7,LY=0,vigGrad=null;
     function resize(){
       const d=Math.min(window.devicePixelRatio||1,2);
       W=innerWidth;H=innerHeight;
@@ -61,8 +61,6 @@
       cx.setTransform(d,0,0,d,0,0);
       R=Math.max(38,Math.min(70,Math.min(W,H)*.12));L=R*1.55;HR=Math.max(6,R*.13);
       CX=W/2;CY=H*.36;LY=Math.min(H*.86,CY+R+L+Math.max(140,H*.3));
-      bgGrad=cx.createRadialGradient(CX,CY,0,CX,CY,Math.max(W,H)*.75);
-      bgGrad.addColorStop(0,'#0a1634');bgGrad.addColorStop(.55,'#050a1a');bgGrad.addColorStop(1,'#020308');
       vigGrad=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.3,W/2,H/2,Math.min(W,H)*.72);
       vigGrad.addColorStop(0,'rgba(0,0,0,0)');vigGrad.addColorStop(1,'rgba(0,0,0,.6)');
     }
@@ -82,8 +80,9 @@
     function speed(){return Math.min(1.25+el*.028,4.2)*(.86+.14*Math.sin(el*.9));}
     function thr(){return 2*Math.asin(Math.min(1,(HR+1.5)/(R+L)));}
     function angDiff(a,b){let d=((a-b)%TWO+TWO)%TWO;return d>Math.PI?TWO-d:d;}
+    const PHASE_SECS=[25,55,90,130]; // seconds survived where phases 2..5 begin
     function checkPhase(){
-      Arcade.setPhase(Math.min(5,1+Math.floor(score/12)));
+      Arcade.setPhase(Arcade.phaseAt(el,PHASE_SECS));
     }
     function setScore(){scoreEl.textContent=String(score);checkPhase();}
     function fire(){
@@ -129,9 +128,10 @@
       for(let i=parts.length-1;i>=0;i--){const pt=parts[i];pt.x+=pt.vx*dt;pt.y+=pt.vy*dt;pt.vx*=.96;pt.vy*=.96;pt.life-=dt*2.2;pt.rot+=pt.spin*dt;if(pt.life<=0)parts.splice(i,1);}
       if(hitstop>0){hitstop-=dt;return;}
       el+=dt;
+      if(!dead)checkPhase();
       if(!dead){
         rot+=spinDir*speed()*dt;
-        if(Arcade.phase()>=3){
+        if(score>=24){ // spin reversals start here, independent of the scene phase
           if(revD>0){revD-=dt;if(revD<=0){spinDir=-spinDir;revT=rand(6,9);}}
           else{revT-=dt;if(revT<=0){spinDir=-spinDir;revD=REV_DUR;revFlash=1;}}
         }
@@ -272,7 +272,7 @@
       const fx=flash;flash=Math.max(0,flash-.04);
       const revF=revFlash;revFlash=Math.max(0,revFlash-.06);
       const sx=shake?rand(-shake,shake):0,sy=shake?rand(-shake,shake):0;shake=Math.max(0,shake*.86-.1);
-      cx.fillStyle=bgGrad;cx.fillRect(0,0,W,H);
+      cx.fillStyle=Arcade.bgGradient(cx,CX,CY,Math.max(W,H)*.75);cx.fillRect(0,0,W,H);
       drawGrid();
       if(near>0){
         const ng=cx.createRadialGradient(CX,CY,0,CX,CY,Math.max(W,H)*.55);

@@ -63,12 +63,12 @@
 
       var state = 'ready';
       var W = 0, H = 0, dpr = 1;
-      var bgGrad = null, vigGrad = null;
+      var vigGrad = null;
       var score = 0;
       var elapsed = 0;
+      var PHASE_SECS = [25, 55, 90, 130]; // seconds survived where phases 2..5 begin
       function checkPhase() {
-        var n = Math.min(5, 1 + Math.floor(elapsed / 15));
-        if (Arcade.setPhase(n)) {
+        if (Arcade.setPhase(Arcade.phaseAt(elapsed, PHASE_SECS))) {
           tone(520, .12, 'sine', .06, 0);
           tone(392, .16, 'sine', .05, .09);
         }
@@ -107,8 +107,6 @@
         W = window.innerWidth; H = window.innerHeight;
         canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        bgGrad = ctx.createRadialGradient(W / 2, H * .35, 0, W / 2, H * .35, Math.hypot(W, H) * .8);
-        bgGrad.addColorStop(0, '#0a1634'); bgGrad.addColorStop(.55, '#050a1a'); bgGrad.addColorStop(1, '#020308');
         vigGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.min(W, H) * .72);
         vigGrad.addColorStop(0, 'rgba(0,0,0,0)'); vigGrad.addColorStop(1, 'rgba(0,0,0,.62)');
         layout();
@@ -367,7 +365,7 @@
 
       function drawBackground() {
         ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = bgGrad;
+        ctx.fillStyle = Arcade.bgGradient(ctx, W / 2, H * .35, Math.hypot(W, H) * .8);
         ctx.fillRect(0, 0, W, H);
         ctx.save();
         if (shake) ctx.translate(rand(-shake, shake), rand(-shake, shake));

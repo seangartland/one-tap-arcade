@@ -37,14 +37,12 @@ const rgba=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')';
 const mixc=(a,b,t)=>[a[0]+(b[0]-a[0])*t|0,a[1]+(b[1]-a[1])*t|0,a[2]+(b[2]-a[2])*t|0];
 const vib=n=>{try{navigator.vibrate&&navigator.vibrate(n);}catch(e){}};
 
-let W=0,H=0,DPR=1,S=1,AX=0,AY=0,safeTop=0,bgGrad=null,vigGrad=null;
+let W=0,H=0,DPR=1,S=1,AX=0,AY=0,safeTop=0,vigGrad=null;
 function resize(){
   DPR=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
   cv.width=W*DPR|0;cv.height=H*DPR|0;cv.style.width=W+'px';cv.style.height=H+'px';
   S=clamp(Math.min(W/390,H/800),.8,1.5);AX=W/2;AY=H*.44;
   safeTop=safeEl.getBoundingClientRect?safeEl.getBoundingClientRect().height:0;
-  bgGrad=cx.createRadialGradient(W/2,H*.6,0,W/2,H*.6,Math.hypot(W,H)*.7);
-  bgGrad.addColorStop(0,'#0a1634');bgGrad.addColorStop(.55,'#050a1a');bgGrad.addColorStop(1,'#020308');
   vigGrad=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.35,W/2,H/2,Math.hypot(W,H)*.62);
   vigGrad.addColorStop(0,'rgba(0,0,0,0)');vigGrad.addColorStop(1,'rgba(0,0,0,.62)');
 }
@@ -101,6 +99,7 @@ function trackD(n){
   return{rMin:lerp(150,60,t),rMax:lerp(260,135,t),stMin:lerp(800,560,t),stMax:lerp(1150,860,t),chic:n<5?0:lerp(.18,.45,t)};
 }
 // minimum pace keeps climbing past what a clean run can hold, so every run ends
+const PHASE_DIST=[14000,32000,55000,80000]; /* distance traveled where phases 2..5 begin */
 function paceD(n){return{vmax:lerp(820,960,clamp(n/45,0,1)),pace:Math.min(700,330+5.5*n),gain:Math.min(2.1,1+.015*n)};}
 function pickTurn(a,b){
   const L=1.3,th=genTh;
@@ -198,7 +197,7 @@ function apex(c){
     blip(1320,.25,'triangle',.05);blip(1980,.35,'sine',.035,0,.05);blip(2640,.4,'sine',.02,0,.1);vib(14);}
   else if(g===2){blip(990,.18,'triangle',.045);blip(1480,.2,'sine',.02,0,.04);}
   else blip(620,.12,'triangle',.035);
-  scoreEl.textContent=score;Arcade.setPhase(Math.min(5,1+Math.floor(score/30)));cur=nextCorner();
+  scoreEl.textContent=score;cur=nextCorner();
 }
 function ring(g,s){rings.push({x:carX,y:carY,t:0,g,s});}
 function startSlide(c,q){
@@ -258,6 +257,7 @@ function step(dt){
     else v-=BRK*(ent?.5:1)*dt;
     v=clamp(v,VMIN,pd.vmax*(boostT>0?1.15:1));
     carS+=v*dt;
+    if(mode==='play')Arcade.setPhase(Arcade.phaseAt(carS-160,PHASE_DIST));
     if(cur&&carS>=cur.sApex)apex(cur);
     if(mode==='play'){
       const dg=v>=pd.pace?(v-pd.pace)*.55:(v-pd.pace)*pd.gain;
@@ -521,7 +521,7 @@ function drawHud(){
 function draw(){
   const Z=zoom*S,sx=shake?rand(-shake,shake):0,sy=shake?rand(-shake,shake):0;
   cx.setTransform(DPR,0,0,DPR,0,0);cx.globalCompositeOperation='source-over';cx.globalAlpha=1;
-  cx.fillStyle=bgGrad;cx.fillRect(0,0,W,H);
+  cx.fillStyle=Arcade.bgGradient(cx,W/2,H*.6,Math.hypot(W,H)*.7);cx.fillRect(0,0,W,H);
   cx.save();cx.translate(AX+sx,AY+sy);cx.rotate(-camA);cx.scale(Z,Z);cx.translate(-camX,-camY);
   cx.globalCompositeOperation='lighter';
   drawGrid(Z);drawDust();

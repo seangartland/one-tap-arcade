@@ -415,15 +415,67 @@
     root.setProperty('--lime', trio.lime);
     refreshColors();
   }
+  /* Background themes, one per phase: gradient stops [center, mid, edge].
+     Dark and low-chroma so the cyan / amber / magenta gameplay stays readable. */
+  var PHASE_BG = [
+    ['#0d1c40', '#060d22', '#020409'],  /* Daybreak: deep blue dawn */
+    ['#1f1240', '#0f0a22', '#050310'],  /* Dusk: violet */
+    ['#2a0e0c', '#150706', '#060202'],  /* Ember: dark red */
+    ['#062a2e', '#031416', '#010506'],  /* Tide: deep teal */
+    ['#141416', '#08080a', '#020203']   /* Noir: near black */
+  ];
+  var BG_FADE_MS = 1000;
+  var bgFrom = PHASE_BG[0], bgTo = PHASE_BG[0], bgStart = 0;
+  function nowMs() { return window.performance && performance.now ? performance.now() : Date.now(); }
+  function hexToRgb(h) {
+    var v = parseInt(h.slice(1), 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  }
+  function lerpHex(a, b, k) {
+    var x = hexToRgb(a), y = hexToRgb(b), out = '#';
+    for (var i = 0; i < 3; i++) {
+      var c = Math.round(x[i] + (y[i] - x[i]) * k);
+      out += (c < 16 ? '0' : '') + c.toString(16);
+    }
+    return out;
+  }
+  /* Lerped [center, mid, edge] hex triplet for the current frame. */
+  function bgNow() {
+    var k = (nowMs() - bgStart) / BG_FADE_MS;
+    if (k >= 1) return bgTo;
+    if (k < 0) k = 0;
+    k = k * k * (3 - 2 * k);
+    return [lerpHex(bgFrom[0], bgTo[0], k), lerpHex(bgFrom[1], bgTo[1], k), lerpHex(bgFrom[2], bgTo[2], k)];
+  }
+  /* Start a crossfade to phase n's theme; snap when there is no old theme to leave. */
+  function fadeBgTo(n, snap) {
+    var to = PHASE_BG[n - 1];
+    bgFrom = snap ? to : bgNow();
+    bgTo = to;
+    bgStart = nowMs();
+  }
   function setPhase(n, silent) {
     if (n === currentPhase) return false;
+    fadeBgTo(n, currentPhase === 0);
     currentPhase = n;
     applyPhaseVars(n);
     if (n > 1 && !silent) showToast(PHASES[n - 1].name, colors.cyan);
     return true;
   }
+  /* Progress-driven phase: steps = the progress values where phases 2..5 begin. */
+  function phaseAt(progress, steps) {
+    var n = 1;
+    for (var i = 0; i < steps.length && i < 4; i++) if (progress >= steps[i]) n = i + 2;
+    return n;
+  }
+  /* Radial gradient filled with this frame's crossfaded theme. Call every frame. */
+  function bgGradient(ctx, x, y, r) {
+    var t = bgNow(), g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, t[0]); g.addColorStop(.55, t[1]); g.addColorStop(1, t[2]);
+    return g;
+  }
   function phase() { return currentPhase; }
-  function resetPhase() { currentPhase = 0; }
+  function resetPhase() { currentPhase = 0; fadeBgTo(1, true); }
   function rand(min, max) { return min + Math.random() * (max - min); }
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
     if (typeof cfg.onSchemeChange === 'function') cfg.onSchemeChange();
@@ -751,6 +803,10 @@
     setPhase: setPhase,
     phase: phase,
     resetPhase: resetPhase,
+    bgNow: bgNow,
+    bgGradient: bgGradient,
+    phaseAt: phaseAt,
+    PHASE_BG: PHASE_BG,
     rand: rand,
     canvas: canvas,
     gameEl: gameEl,

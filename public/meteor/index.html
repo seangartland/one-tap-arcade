@@ -76,7 +76,7 @@
       var state = 'ready';
       var W = 0, H = 0, dpr = 1;
       var BASE_H = 0;
-      var bgGrad = null, vigGrad = null;
+      var vigGrad = null;
       var score = 0, lives = 3, combo = 0;
       var elapsed = 0;
       var meteors = [];
@@ -89,9 +89,9 @@
       var shake = 0;
       var spawnT = 0;
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var PHASE_SECS = [25, 55, 90, 130]; // seconds survived where phases 2..5 begin
       function checkPhase() {
-        var n = Math.min(5, 1 + Math.floor(elapsed / 15));
-        if (Arcade.setPhase(n)) {
+        if (Arcade.setPhase(Arcade.phaseAt(elapsed, PHASE_SECS))) {
           tone(520, .12, 'sine', .06, 0);
           tone(392, .16, 'sine', .05, .09);
         }
@@ -214,7 +214,7 @@
         meteors = []; particles = []; rings = []; pops = [];
         flash = 0; shake = 0; spawnT = 0.6;
         spawn(); spawn();
-        Arcade.setPhase(1, true);
+        Arcade.resetPhase(); Arcade.setPhase(1, true);
         syncHud();
         gameEl.classList.add('playing');
         tone(440, .09, 'sine', .07, 0);
@@ -257,8 +257,6 @@
         canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         BASE_H = H - 46;
-        bgGrad = ctx.createRadialGradient(W / 2, H * .32, 0, W / 2, H * .32, Math.hypot(W, H) * .85);
-        bgGrad.addColorStop(0, '#0a1634'); bgGrad.addColorStop(.55, '#050a1a'); bgGrad.addColorStop(1, '#020308');
         vigGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .3, W / 2, H / 2, Math.min(W, H) * .7);
         vigGrad.addColorStop(0, 'rgba(0,0,0,0)'); vigGrad.addColorStop(1, 'rgba(0,0,0,.64)');
         initStars();
@@ -447,7 +445,7 @@
       }
       function draw() {
         ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = bgGrad;
+        ctx.fillStyle = Arcade.bgGradient(ctx, W / 2, H * .32, Math.hypot(W, H) * .85);
         ctx.fillRect(0, 0, W, H);
         ctx.save();
         if (shake) ctx.translate(rand(-shake, shake), rand(-shake, shake));

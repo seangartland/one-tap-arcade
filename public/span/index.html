@@ -52,14 +52,12 @@
     const C_CYAN=[1,205,254],C_ICE=[170,245,255],C_AMB=[255,209,102],C_MAG=[255,43,214],C_WHT=[255,255,255];
     function rgba(c,a){return 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')';}
     function mixc(a,b,t){return [a[0]+(b[0]-a[0])*t|0,a[1]+(b[1]-a[1])*t|0,a[2]+(b[2]-a[2])*t|0];}
-    let W=0,H=0,GY=0,bgGrad=null,vigGrad=null;
+    let W=0,H=0,GY=0,vigGrad=null;
     function resize(){
       const d=Math.min(window.devicePixelRatio||1,2);
       W=innerWidth;H=innerHeight;
       cv.width=W*d;cv.height=H*d;
       cx.setTransform(d,0,0,d,0,0);GY=H*.64;
-      bgGrad=cx.createRadialGradient(W/2,H*.38,0,W/2,H*.38,Math.hypot(W,H)*.78);
-      bgGrad.addColorStop(0,'#0a1634');bgGrad.addColorStop(.55,'#050a1a');bgGrad.addColorStop(1,'#020308');
       vigGrad=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.34,W/2,H/2,Math.hypot(W,H)*.66);
       vigGrad.addColorStop(0,'rgba(0,0,0,0)');vigGrad.addColorStop(1,'rgba(0,0,0,.64)');
     }
@@ -102,8 +100,9 @@
       px=pillars[0].x+pillars[0].w-12;py=0;pvy=0;st='ready';
       if(!stars.length)for(let i=0;i<60;i++)stars.push({x:rand(0,1),y:rand(0,1),s:rand(.5,1.6),d:rand(.1,.4)});
     }
+    const PHASE_CROSSINGS=[8,18,30,45]; // crossings where phases 2..5 begin
     function checkPhase(){
-      Arcade.setPhase(Math.min(5,1+Math.floor(score/8)));
+      Arcade.setPhase(Arcade.phaseAt(cur,PHASE_CROSSINGS));
     }
     function startGame(){
       Arcade.startFlow();humOff();Arcade.resetPhase();reset();gameEl.classList.add('playing');
@@ -292,7 +291,7 @@
     function draw(){
       const sx=shake?rand(-shake,shake):0,sy=shake?rand(-shake,shake)*.5:0;shake=Math.max(0,shake*.85-.1);
       cx.globalCompositeOperation='source-over';cx.globalAlpha=1;cx.setLineDash([]);cx.lineCap='round';cx.lineJoin='round';
-      cx.fillStyle=bgGrad;cx.fillRect(0,0,W,H);
+      cx.fillStyle=Arcade.bgGradient(cx,W/2,H*.38,Math.hypot(W,H)*.78);cx.fillRect(0,0,W,H);
       drawGrid();drawStars();
       cx.save();cx.translate(-cam+sx,sy);
       drawPlatforms();drawBeams();drawTarget();drawActiveBeam();drawPops();drawTexts();drawRunner();

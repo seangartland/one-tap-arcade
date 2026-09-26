@@ -56,7 +56,7 @@
       var mover = null;
       var debris = [];
       var sparks = [];
-      var bgGrad = null, vigGrad = null;
+      var vigGrad = null;
       var cam = 0, camTarget = 0;
       var speed = 0;
       var spawnDir = 1;
@@ -76,8 +76,9 @@
       function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
       function mixc(a, b, t) { return [a[0] + (b[0] - a[0]) * t | 0, a[1] + (b[1] - a[1]) * t | 0, a[2] + (b[2] - a[2]) * t | 0]; }
 
+      var PHASE_BLOCKS = [18, 40, 65, 95]; // blocks stacked where phases 2..5 begin
       function checkPhase() {
-        Arcade.setPhase(Math.min(5, 1 + Math.floor(score / 8)));
+        Arcade.setPhase(Arcade.phaseAt(stack.length - 1, PHASE_BLOCKS));
       }
 
       function resize() {
@@ -87,8 +88,6 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         baseW = Math.max(120, Math.min(230, W * .52));
         bh = Math.max(24, Math.min(36, H * .045));
-        bgGrad = ctx.createRadialGradient(W / 2, H * .35, 0, W / 2, H * .35, Math.hypot(W, H) * .8);
-        bgGrad.addColorStop(0, '#0a1634'); bgGrad.addColorStop(.55, '#050a1a'); bgGrad.addColorStop(1, '#020308');
         vigGrad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.min(W, H) * .72);
         vigGrad.addColorStop(0, 'rgba(0,0,0,0)'); vigGrad.addColorStop(1, 'rgba(0,0,0,.62)');
       }
@@ -342,7 +341,7 @@
 
       function draw() {
         ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = bgGrad;
+        ctx.fillStyle = Arcade.bgGradient(ctx, W / 2, H * .35, Math.hypot(W, H) * .8);
         ctx.fillRect(0, 0, W, H);
         ctx.save();
         ctx.translate(0, -cam);

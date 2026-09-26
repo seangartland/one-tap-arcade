@@ -79,8 +79,10 @@
       var targetWidth = .68;
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+      var hits = 0;
+      var PHASE_HITS = [18, 40, 65, 95]; // successful taps where phases 2..5 begin
       function checkPhase() {
-        Arcade.setPhase(Math.min(5, 1 + Math.floor(score / 12)));
+        Arcade.setPhase(Arcade.phaseAt(hits, PHASE_HITS));
       }
 
       function resize() {
@@ -127,7 +129,7 @@
       }
       function startGame() {
         Arcade.startFlow();
-        state = 'playing'; score = 0; streak = 0; lives = 3; Arcade.resetPhase();
+        state = 'playing'; score = 0; hits = 0; streak = 0; lives = 3; Arcade.resetPhase();
         angle = -Math.PI / 2; direction = Math.random() > .5 ? 1 : -1; speed = 3.2;
         particles = []; rings = []; flash = 0; shake = 0;
         newTarget(); setScore(); setLives();
@@ -160,7 +162,7 @@
         var allowance = targetWidth * .57 + .10;
         if (d <= allowance) {
           var perfect = d < targetWidth * .19;
-          streak++;
+          streak++; hits++;
           var multi = Math.min(5, 1 + Math.floor(streak / 5));
           score += (perfect ? 2 : 1) * multi;
           speed = Math.min(4.45, speed + .10);
@@ -216,13 +218,9 @@
         ctx.save();
         ctx.translate(shake ? rand(-shake, shake) : 0, shake ? rand(-shake, shake) : 0);
 
-        // deep navy radial gradient background
+        // phase-driven radial gradient background
         var bgR = Math.max(W, H) * .72;
-        var sky = ctx.createRadialGradient(cx, cy, 0, cx, cy, bgR);
-        sky.addColorStop(0, '#0a1634');
-        sky.addColorStop(.55, '#050a1a');
-        sky.addColorStop(1, '#020308');
-        ctx.fillStyle = sky;
+        ctx.fillStyle = Arcade.bgGradient(ctx, cx, cy, bgR);
         ctx.fillRect(-bgR, -bgR, W + bgR * 2, H + bgR * 2);
 
         // faint blue grid, one brighter major line each way
